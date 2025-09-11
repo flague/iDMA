@@ -27,7 +27,7 @@
 module idma_legalizer_llc_splitter #(
   /// Max number of rvalid that can be in flight, while no wvalid is received
   /// This should correspond to the size of the READ FIFOs in between the DMA and LLC path 
-  parameter int unsigned MaxNumInFlight = 32'd16, // In elements of DataType
+  parameter int unsigned MaxReadInFlight = 32'd16, // In elements of DataType
   /// Minimum length of a burst request that can be sent
   parameter int unsigned MinAvailSlots  = 32'd2, // In elements of DataType
   /// Data Type of the burst transfers used by the DMA
@@ -152,7 +152,7 @@ end
 // Output logic
 //-------------
 always_comb begin : output_logic
-  num_bytes_to_llc_o = MaxNumInFlight << LogDataType; // default
+  num_bytes_to_llc_o = MaxReadInFlight << LogDataType; // default
   req_valid_o = 1'b0; // default
   case (curr_state)
     RESET: ;
@@ -191,7 +191,7 @@ end
 // FF for available bytes
 always_ff @(posedge clk_i or negedge rst_ni) begin : ff_avail_bytes
   if (!rst_ni) begin
-    curr_avail_bytes <= (MaxNumInFlight << LogDataType);
+    curr_avail_bytes <= (MaxReadInFlight << LogDataType);
   end else begin
     curr_avail_bytes <= next_avail_bytes;
   end
