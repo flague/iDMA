@@ -731,7 +731,7 @@ ${rendered_write_bridges[protocol]}
 
 % for protocol in used_protocols:
     // throttle the\
-    % if protocl != 'axi':
+    % if protocol != 'axi':
 ${database[protocol]['full_name']}-\
     % endif
  AXI bus
