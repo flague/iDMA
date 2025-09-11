@@ -21,6 +21,21 @@ module idma_legalizer_${name_uniqueifier} #(
     parameter int unsigned DataWidth       = 32'd16,
     /// Address width
     parameter int unsigned AddrWidth       = 32'd24,
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+    /// RFIFO Depth: how many reads (rvalid) can be sent
+    /// without receiving a write completion (wvalid)
+    parameter int unsigned MaxReadInFlight  = 32'd16,
+    /// Min Length of a burst that can be sent
+    parameter int unsigned MinAvailSlots   = 32'd4,
+    /// PMA cache region base address
+    parameter logic [15:0][63:0] CachedRegionAddrBase = {'0},
+    /// PMA cache region rules
+    parameter logic [15:0][63:0] CachedRegionLength = {'0},
+    /// Number of cached region rules
+    parameter int unsigned NrCachedRegionRules = 16,
+% endif
+% endfor
     /// 1D iDMA request type:
     /// - `length`: the length of the transfer in bytes
     /// - `*_addr`: the source / target byte addresses of the transfer
@@ -61,6 +76,13 @@ module idma_legalizer_${name_uniqueifier} #(
     /// Write request ready
     input  logic w_ready_i,
 
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+    /// Write valid received from downstream
+    /// This is used to throttle the read requests in case of LLC to LLC transfers
+    input  logic wvalid_i,
+% endif
+% endfor
     /// Invalidate the current burst transfer, stops emission of requests
     input  logic flush_i,
     /// Kill the active 1D transfer; reload a new transfer
@@ -254,6 +276,73 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
         endcase
     end
 % endif
+    
+% if no_read_bursting or has_page_read_bursting:
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+
+    //--------------------------
+    // Read - LLC boundary check
+    //--------------------------
+    // Check with max_llen is performed by the page_splitter, so no need to repeat it
+    // No need for a write splitter, use the same for both, as read and write transactions
+    // have the same len.
+    function automatic logic range_check(logic [63:0] base, logic [63:0] len, logic [63:0] address);
+        // if len is a power of two, and base is properly aligned, this check could be simplified
+        // Extend base by one bit to prevent an overflow.
+        return (address >= base) && (({1'b0, address}) < (65'(base) + len));
+    endfunction : range_check
+
+    function automatic logic is_inside_cacheable_regions
+    (   logic [15:0][63:0] CachedRegionAddrBase,
+        logic [15:0][63:0] CachedRegionLength,
+        int unsigned NrCachedRegionRules,
+        logic [63:0] address
+    );
+      automatic logic [15:0] pass;
+      pass = '0;
+      for (int unsigned k = 0; k < NrCachedRegionRules; k++) begin
+        pass[k] = range_check(CachedRegionAddrBase[k], CachedRegionLength[k], address);
+      end
+      return |pass;
+    endfunction : is_inside_cacheable_regions
+
+
+    // Internal signals
+    // ----------------
+    /// LLC transfer length type
+    typedef logic [ 10 :0] llc_len_t;
+    // llc boundaries
+    llc_len_t num_bytes_to_llc;
+    page_len_t c_num_bytes;
+    logic      llc_to_llc_transfer;
+    logic      llc_split_valid;
+    
+    idma_legalizer_llc_splitter #(
+      .MaxReadInFlight ( MaxReadInFlight ),
+      .MinAvailSlots  ( MinAvailSlots  ),
+      .DataType       ( DataWidth/8 ),
+      .llc_len_t      ( llc_len_t       )
+    ) i_llc_splitter (
+      .clk_i              ( clk_i                 ),
+      .rst_ni             ( rst_ni                ),
+      .req_accepted_i     ( ready_o & valid_i     ),
+      .splitter_en_i      ( llc_to_llc_transfer   ),
+      .byte_transfer_i    ( r_num_bytes           ), // final length of the transfer in bytes
+      .transfer_valid_i   ( r_valid_o             ),
+      .rem_bytes_i        ( r_tf_q.length         ), // TODO: check if this or _d
+      .wvalid_i           ( wvalid_i              ),
+      .num_bytes_to_llc_o ( num_bytes_to_llc      ),
+      .req_valid_o        ( llc_split_valid       )
+    );
+
+    assign llc_to_llc_transfer =  r_tf_q.valid & w_tf_q.valid & 
+                                is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, r_tf_q.addr) &
+                                is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, w_tf_q.addr);
+%endif
+%endfor
+% endif
+
 
     //--------------------------------------
     // write boundary check
@@ -346,15 +435,27 @@ w_num_bytes_to_pb = w_page_num_bytes_to_pb;
     assign c_num_bytes_to_pb = (r_num_bytes_to_pb > w_num_bytes_to_pb) ?
                                 w_num_bytes_to_pb : r_num_bytes_to_pb;
 
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+    assign c_num_bytes = (llc_to_llc_transfer && (num_bytes_to_llc < c_num_bytes_to_pb)) ?
+                     num_bytes_to_llc : c_num_bytes_to_pb;
+% endif
+% endfor
 
     //--------------------------------------
     // Synchronized R/W process
     //--------------------------------------
     always_comb begin : proc_num_bytes_possible
         // Default: Coupled
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+        r_num_bytes_possible = c_num_bytes;
+        w_num_bytes_possible = c_num_bytes;
+% else:
         r_num_bytes_possible = c_num_bytes_to_pb;
         w_num_bytes_possible = c_num_bytes_to_pb;
-
+% endif
+% endfor
         if (opt_tf_q.decouple_rw\
     % if len(used_non_bursting_or_force_decouple_read_protocols) != 0:
 
@@ -642,11 +743,20 @@ ${database[protocol]['legalizer_write_data_path']}
             r_valid_o = r_tf_q.valid & r_ready_i & !flush_i;
             w_valid_o = w_tf_q.valid & w_ready_i & !flush_i;
         end else begin
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+            r_tf_ena  = (r_ready_i & w_ready_i & !flush_i & llc_split_valid) | kill_i;
+            w_tf_ena  = (r_ready_i & w_ready_i & !flush_i & llc_split_valid) | kill_i;
+
+            r_valid_o = r_tf_q.valid & llc_split_valid & w_ready_i & r_ready_i & !flush_i;
+            w_valid_o = w_tf_q.valid & llc_split_valid & r_ready_i & w_ready_i & !flush_i;
+% else:
             r_tf_ena  = (r_ready_i & w_ready_i & !flush_i) | kill_i;
             w_tf_ena  = (r_ready_i & w_ready_i & !flush_i) | kill_i;
-
             r_valid_o = r_tf_q.valid & w_ready_i & r_ready_i & !flush_i;
             w_valid_o = w_tf_q.valid & r_ready_i & w_ready_i & !flush_i;
+% endif
+% endfor
         end
     end
 

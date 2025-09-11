@@ -9,6 +9,7 @@ prefix: "axi"
 protocol_enum: "AXI"
 full_name: "AXI4+ATOP"
 tb_define: "PROT_AXI4"
+llc_coherence: "true"
 bursts: "split_at_page_boundary"
 page_size: 4096
 max_beats_per_burst: 256

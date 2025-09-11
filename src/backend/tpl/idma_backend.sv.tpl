@@ -29,6 +29,21 @@ module idma_backend_${name_uniqueifier} #(
     parameter int unsigned TFLenWidth       = 32'd24,
     /// The depth of the memory system the backend is attached to
     parameter int unsigned MemSysDepth      = 32'd0,
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+    /// RFIFO Depth: how many reads (rvalid) can be sent
+    /// without receiving a write completion (wvalid)
+    parameter int unsigned MaxReadInFlight  = 32'd16,
+    /// Min Length of a burst that can be sent
+    parameter int unsigned MinAvailSlots   = 32'd4,
+    /// PMA cache region base address
+    parameter logic [15:0][63:0] CachedRegionAddrBase = {'0},
+    /// PMA cache region rules
+    parameter logic [15:0][63:0] CachedRegionLength = {'0},
+    /// Number of cached region rules
+    parameter int unsigned NrCachedRegionRules = 16,
+% endif
+% endfor
     /// Should both data shifts be done before the dataflow element?
     /// If this is enabled, then the data inserted into the dataflow element
     /// will no longer be word aligned, but only a single shifter is needed
@@ -424,6 +439,15 @@ _rsp_t ${protocol}_write_rsp_i,
             .CombinedShifter   ( CombinedShifter   ),
             .DataWidth         ( DataWidth         ),
             .AddrWidth         ( AddrWidth         ),
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+            .MaxReadInFlight       ( MaxReadInFlight       ),
+            .MinAvailSlots        ( MinAvailSlots        ),
+            .CachedRegionAddrBase ( CachedRegionAddrBase ),
+            .CachedRegionLength   ( CachedRegionLength   ),
+            .NrCachedRegionRules  ( NrCachedRegionRules  ),
+% endif
+% endfor
             .idma_req_t        ( idma_req_t        ),
             .idma_r_req_t      ( idma_r_req_t      ),
             .idma_w_req_t      ( idma_w_req_t      ),
@@ -441,6 +465,11 @@ _rsp_t ${protocol}_write_rsp_i,
             .w_valid_o ( w_valid           ),
             .r_ready_i ( r_ready           ),
             .w_ready_i ( w_ready           ),
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true':
+            .wvalid_i  ( axi_write_req_o.w_valid && axi_write_rsp_i.w_ready ),
+% endif
+% endfor
             .flush_i   ( legalizer_flush   ),
             .kill_i    ( legalizer_kill    ),
             .r_busy_o  ( busy_o.r_leg_busy ),

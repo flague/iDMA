@@ -16,15 +16,25 @@ def render_backend(prot_ids: dict, db: dict, tpl_file: str) -> str:
     """Generate backend"""
     backend_rendered = ''
 
+
     with open(tpl_file, 'r', encoding='utf-8') as templ_file:
         backend_tpl = templ_file.read()
 
+    # Add llc_coherence key to all protocols in the database
+    for protocol in db:
+        if 'llc_coherence' not in db[protocol]:
+            db[protocol]['llc_coherence'] = 'false'
     # render for every is
     for prot_id in prot_ids:
 
         # get ports used
         used_read_prots = prot_ids[prot_id]['ar']
         used_write_prots = prot_ids[prot_id]['aw']
+
+        # Collect llc_coherence flags for all used protocols
+        llc_coherence = {}
+        for protocol in prot_ids[prot_id]['used']:
+            llc_coherence[protocol] = db[protocol]['llc_coherence']
 
         # single port IPs?
         srp = len(used_read_prots) == 1
@@ -34,6 +44,7 @@ def render_backend(prot_ids: dict, db: dict, tpl_file: str) -> str:
         context = {
             'name_uniqueifier': prot_id,
             'database': db,
+            'llc_coherence': llc_coherence,
             'used_read_protocols': used_read_prots,
             'used_write_protocols': used_write_prots,
             'used_protocols': prot_ids[prot_id]['used'],
