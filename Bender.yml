@@ -47,6 +47,7 @@ sources:
       - src/backend/idma_init_read.sv
       - src/backend/idma_init_write.sv
       - src/backend/idma_legalizer_page_splitter.sv
+      - src/backend/idma_legalizer_llc_splitter.sv
       - src/backend/idma_legalizer_pow2_splitter.sv
       - src/backend/idma_obi_read.sv
       - src/backend/idma_obi_write.sv
