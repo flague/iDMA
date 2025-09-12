@@ -92,6 +92,7 @@ llc_len_t curr_avail_bytes, next_avail_bytes, upd_avail_bytes;
 //--------------
 
 always_comb begin : proc_fsm
+  next_state = curr_state; // default
   case (curr_state)
     RESET: begin
       next_state = IDLE;
@@ -108,7 +109,6 @@ always_comb begin : proc_fsm
       else 
         next_state = IDLE; // if not splitting, go back to IDLE after one iteration
     end
-
     default: begin
       next_state = IDLE;
     end
