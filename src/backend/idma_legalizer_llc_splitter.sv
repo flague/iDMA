@@ -49,7 +49,7 @@ module idma_legalizer_llc_splitter #(
   input  logic splitter_en_i,
   // Current transfer length in bytes
   // --------------------------------
-  input  llc_len_t byte_transfer_i,
+  input  logic [7:0] words_transfer_i, //max burst size is 257
   input  logic transfer_valid_i,
   
   // Remaining bytes to be transferred
@@ -83,9 +83,9 @@ typedef enum logic [1:0] {
 
 state_t curr_state, next_state;
 
-// Bytes trackers
+// Words trackers
 // --------------
-llc_len_t curr_avail_bytes, next_avail_bytes, upd_avail_bytes;
+llc_len_t curr_avail_words, next_avail_words, upd_avail_words;
 
 //--------------
 // State machine
@@ -120,26 +120,27 @@ end
 //---------------
 
 always_comb begin : internal_logic
-  next_avail_bytes = curr_avail_bytes; // default
-  upd_avail_bytes  = curr_avail_bytes; // default
+  next_avail_words = curr_avail_words; // default
+  upd_avail_words  = curr_avail_words; // default
   case (curr_state)
     RESET: ;
     IDLE: begin
       // first request received
-      if (req_accepted_i) begin
-        next_avail_bytes = curr_avail_bytes; // reset to all availables
-      end
+      upd_avail_words = curr_avail_words + wvalid_i;
+      //if (req_accepted_i) begin
+      next_avail_words = upd_avail_words; // reset to all availables
+      //end
     end
     UPD_SLOTS: begin
       // Do not forward any request until there are enough available bytes
-      upd_avail_bytes = curr_avail_bytes + (wvalid_i << LogDataType);
-      if (upd_avail_bytes < (MinAvailSlots << LogDataType) && upd_avail_bytes < rem_bytes_i) begin
-        next_avail_bytes = upd_avail_bytes;
+      upd_avail_words = curr_avail_words + wvalid_i;
+      if (upd_avail_words < MinAvailSlots && upd_avail_words <= (rem_bytes_i >> LogDataType)) begin
+        next_avail_words = upd_avail_words;
       end else begin
         if (transfer_valid_i) begin
-          next_avail_bytes = upd_avail_bytes - byte_transfer_i;
+          next_avail_words = upd_avail_words - words_transfer_i - 1;
         end else begin
-          next_avail_bytes = upd_avail_bytes;
+          next_avail_words = upd_avail_words; // offer the currently available words
         end
       end
     end
@@ -161,12 +162,12 @@ always_comb begin : output_logic
     end
     UPD_SLOTS: begin
       // Do not forward any request until there are enough available bytes
-      if (upd_avail_bytes < (MinAvailSlots << LogDataType) && upd_avail_bytes < rem_bytes_i) begin
-        num_bytes_to_llc_o = 0;
+      if (upd_avail_words < MinAvailSlots && upd_avail_words <= (rem_bytes_i >> LogDataType)) begin
+        num_bytes_to_llc_o = '0;
         req_valid_o = 1'b0;
       end else begin
         req_valid_o = 1'b1;
-        num_bytes_to_llc_o = upd_avail_bytes; // offer the currently available bytes
+        num_bytes_to_llc_o = upd_avail_words << LogDataType; // offer the currently available bytes
       end
     end
     default : ;
@@ -189,11 +190,11 @@ always_ff @(posedge clk_i or negedge rst_ni) begin : ff_state
 end
 
 // FF for available bytes
-always_ff @(posedge clk_i or negedge rst_ni) begin : ff_avail_bytes
+always_ff @(posedge clk_i or negedge rst_ni) begin : ff_avail_words
   if (!rst_ni) begin
-    curr_avail_bytes <= (MaxReadInFlight << LogDataType);
+    curr_avail_words <= MaxReadInFlight;
   end else begin
-    curr_avail_bytes <= next_avail_bytes;
+    curr_avail_words <= next_avail_words;
   end
 end
 

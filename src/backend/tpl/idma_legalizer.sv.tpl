@@ -311,31 +311,37 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     // Internal signals
     // ----------------
     /// LLC transfer length type
-    typedef logic [ 10 :0] llc_len_t;
+    //typedef logic [ 10 :0] llc_len_t;
     // llc boundaries
-    llc_len_t num_bytes_to_llc;
+    page_len_t num_bytes_to_llc;
     page_len_t c_num_bytes;
+    page_len_t transferred_words;
     logic      llc_to_llc_transfer;
     logic      llc_split_valid;
     
     idma_legalizer_llc_splitter #(
-      .MaxReadInFlight ( MaxReadInFlight ),
-      .MinAvailSlots  ( MinAvailSlots  ),
-      .DataType       ( DataWidth/8 ),
-      .llc_len_t      ( llc_len_t       )
+      .MaxReadInFlight ( MaxReadInFlight  ), // could be -2 in the worst case
+      .MinAvailSlots   ( MinAvailSlots    ),
+      .DataType        ( DataWidth/8      ),
+      .llc_len_t       ( page_len_t        )
     ) i_llc_splitter (
-      .clk_i              ( clk_i                 ),
-      .rst_ni             ( rst_ni                ),
-      .req_accepted_i     ( ready_o & valid_i     ),
-      .splitter_en_i      ( llc_to_llc_transfer   ),
-      .byte_transfer_i    ( r_num_bytes           ), // final length of the transfer in bytes
-      .transfer_valid_i   ( r_valid_o             ),
-      .rem_bytes_i        ( r_tf_q.length         ), // TODO: check if this or _d
-      .wvalid_i           ( wvalid_i              ),
-      .num_bytes_to_llc_o ( num_bytes_to_llc      ),
-      .req_valid_o        ( llc_split_valid       )
+      .clk_i              ( clk_i                     ),
+      .rst_ni             ( rst_ni                    ),
+      .req_accepted_i     ( ready_o & valid_i         ),
+      .splitter_en_i      ( llc_to_llc_transfer       ),
+      .words_transfer_i   ( transferred_words         ), // final length of the transfer in bytes
+      .transfer_valid_i   ( w_valid_o                 ),
+      .rem_bytes_i        ( w_tf_q.length             ),
+      .wvalid_i           ( wvalid_i                  ),
+      .num_bytes_to_llc_o ( num_bytes_to_llc          ),
+      .req_valid_o        ( llc_split_valid           )
     );
-
+    
+    // Use write transferred words to receive the same number of wvalid
+    // the number of reads should be at most +2 those of the write
+    // make sure that there is enough tolerance in the FIFO depth
+    // for this worst case
+    assign transferred_words = (w_num_bytes + w_addr_offset - 'd1) >> OffsetWidth;
     assign llc_to_llc_transfer =  r_tf_q.valid & w_tf_q.valid & 
                                 is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, r_tf_q.addr) &
                                 is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, w_tf_q.addr);
