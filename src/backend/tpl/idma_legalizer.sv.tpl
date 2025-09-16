@@ -34,6 +34,8 @@ module idma_legalizer_${name_uniqueifier} #(
     parameter logic [15:0][63:0] CachedRegionLength = {'0},
     /// Number of cached region rules
     parameter int unsigned NrCachedRegionRules = 16,
+    /// Transfer length type
+    parameter type tf_len_t = logic,
 % endif
 % endfor
     /// 1D iDMA request type:
@@ -315,15 +317,16 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     // llc boundaries
     page_len_t num_bytes_to_llc;
     page_len_t c_num_bytes;
-    page_len_t transferred_words;
+    logic [7:0] transferred_words; // max burst size is 256
     logic      llc_to_llc_transfer;
     logic      llc_split_valid;
-    
+
     idma_legalizer_llc_splitter #(
       .MaxReadInFlight ( MaxReadInFlight  ), // could be -2 in the worst case
       .MinAvailSlots   ( MinAvailSlots    ),
       .DataType        ( DataWidth/8      ),
-      .llc_len_t       ( page_len_t        )
+      .llc_len_t       ( page_len_t       ),
+      .tf_len_t        ( tf_len_t         )
     ) i_llc_splitter (
       .clk_i              ( clk_i                     ),
       .rst_ni             ( rst_ni                    ),

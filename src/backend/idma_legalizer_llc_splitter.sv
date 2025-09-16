@@ -35,6 +35,8 @@ module idma_legalizer_llc_splitter #(
   /// Type of the byte length signal
   /// As max burst is 256, theoric max is 256*DataType
   parameter type llc_len_t = logic[31:0],
+  // Type representing max transfer length in byte
+  parameter type tf_len_t  = logic[31:0],
   localparam int unsigned LogDataType = $clog2(DataType)
 ) (
   input  logic clk_i,
@@ -54,7 +56,7 @@ module idma_legalizer_llc_splitter #(
   
   // Remaining bytes to be transferred
   // ---------------------------------
-  input  llc_len_t rem_bytes_i,
+  input  tf_len_t rem_bytes_i,
 
   // Wvalid from the write channel
   // -----------------------------
@@ -134,7 +136,8 @@ always_comb begin : internal_logic
     UPD_SLOTS: begin
       // Do not forward any request until there are enough available bytes
       upd_avail_words = curr_avail_words + wvalid_i;
-      if (upd_avail_words < MinAvailSlots && upd_avail_words <= (rem_bytes_i >> LogDataType)) begin
+      // if rem_bytes are unaligned, they could require a +1 word transfer
+      if (upd_avail_words < MinAvailSlots && upd_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
         next_avail_words = upd_avail_words;
       end else begin
         if (transfer_valid_i) begin
@@ -153,7 +156,7 @@ end
 // Output logic
 //-------------
 always_comb begin : output_logic
-  num_bytes_to_llc_o = MaxReadInFlight << LogDataType; // default
+  num_bytes_to_llc_o = (MaxReadInFlight-1) << LogDataType; // default
   req_valid_o = 1'b0; // default
   case (curr_state)
     RESET: ;
@@ -162,12 +165,15 @@ always_comb begin : output_logic
     end
     UPD_SLOTS: begin
       // Do not forward any request until there are enough available bytes
-      if (upd_avail_words < MinAvailSlots && upd_avail_words <= (rem_bytes_i >> LogDataType)) begin
+      if (upd_avail_words < MinAvailSlots && upd_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
         num_bytes_to_llc_o = '0;
         req_valid_o = 1'b0;
       end else begin
         req_valid_o = 1'b1;
-        num_bytes_to_llc_o = upd_avail_words << LogDataType; // offer the currently available bytes
+        //if ((upd_avail_words-1) == 0) // should never happen due to the +1 in the rem_bytes check
+        //  num_bytes_to_llc_o = DataType; // offer at least one data type
+        //else
+        num_bytes_to_llc_o = (upd_avail_words-1) << LogDataType; // offer the currently available bytes
       end
     end
     default : ;

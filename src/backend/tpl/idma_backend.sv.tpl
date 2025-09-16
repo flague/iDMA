@@ -441,11 +441,12 @@ _rsp_t ${protocol}_write_rsp_i,
             .AddrWidth         ( AddrWidth         ),
 % for protocol in used_protocols:
 % if llc_coherence[protocol] == 'true':
-            .MaxReadInFlight       ( MaxReadInFlight       ),
+            .MaxReadInFlight      ( MaxReadInFlight      ),
             .MinAvailSlots        ( MinAvailSlots        ),
             .CachedRegionAddrBase ( CachedRegionAddrBase ),
             .CachedRegionLength   ( CachedRegionLength   ),
             .NrCachedRegionRules  ( NrCachedRegionRules  ),
+            .tf_len_t             ( tf_len_t             ),
 % endif
 % endfor
             .idma_req_t        ( idma_req_t        ),
