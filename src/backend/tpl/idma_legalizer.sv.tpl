@@ -296,15 +296,15 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     endfunction : range_check
 
     function automatic logic is_inside_cacheable_regions
-    (   logic [15:0][63:0] CachedRegionAddrBase,
-        logic [15:0][63:0] CachedRegionLength,
-        int unsigned NrCachedRegionRules,
+    (   logic [15:0][63:0] RegionAddrBase,
+        logic [15:0][63:0] RegionLength,
+        int unsigned RegionRules,
         logic [63:0] address
     );
       automatic logic [15:0] pass;
       pass = '0;
-      for (int unsigned k = 0; k < NrCachedRegionRules; k++) begin
-        pass[k] = range_check(CachedRegionAddrBase[k], CachedRegionLength[k], address);
+      for (int unsigned k = 0; k < RegionRules; k++) begin
+        pass[k] = range_check(RegionAddrBase[k], RegionLength[k], address);
       end
       return |pass;
     endfunction : is_inside_cacheable_regions
