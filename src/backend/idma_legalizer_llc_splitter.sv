@@ -161,7 +161,7 @@ always_comb begin : output_logic
   case (curr_state)
     RESET: ;
     IDLE: begin
-      req_valid_o = req_accepted_i; // pass the request, needed to correctly sample the incoming req
+      req_valid_o = 1'b1; // pass the request, needed to correctly sample the incoming req
     end
     UPD_SLOTS: begin
       // Do not forward any request until there are enough available bytes
