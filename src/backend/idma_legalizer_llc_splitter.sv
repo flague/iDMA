@@ -80,7 +80,8 @@ module idma_legalizer_llc_splitter #(
 typedef enum logic [1:0] {
   RESET     = 2'd0,
   IDLE      = 2'd1,
-  UPD_SLOTS = 2'd2
+  UPD_SLOTS = 2'd2,
+  WAIT_LAST = 2'd3
 } state_t;
 
 state_t curr_state, next_state;
@@ -101,7 +102,7 @@ always_comb begin : proc_fsm
     end
 
     IDLE: begin
-      if (req_accepted_i) begin
+      if (req_accepted_i && splitter_en_i) begin
         next_state = UPD_SLOTS;
       end
     end
@@ -109,7 +110,16 @@ always_comb begin : proc_fsm
       if (splitter_en_i) // should be disabled only when all burst have been sent (check)
         next_state = UPD_SLOTS; // stay in this state until the end of the split transfers
       else 
-        next_state = IDLE; // if not splitting, go back to IDLE after one iteration
+        next_state = WAIT_LAST; // if not splitting, go back to IDLE after one iteration
+    end
+    WAIT_LAST: begin
+      if (req_accepted_i && splitter_en_i) begin
+        next_state = UPD_SLOTS; // new request to split
+      end else if (req_accepted_i && !splitter_en_i) begin
+        next_state = IDLE; // new request but no splitting needed
+      end else if (curr_avail_words == MaxReadInFlight)begin
+        next_state = IDLE; // back to idle
+      end
     end
     default: begin
       next_state = IDLE;
@@ -127,14 +137,10 @@ always_comb begin : internal_logic
   case (curr_state)
     RESET: ;
     IDLE: begin
-      // first request received
-      upd_avail_words = curr_avail_words + wvalid_i;
-      //if (req_accepted_i) begin
-      next_avail_words = upd_avail_words; // reset to all availables
-      //end
+      upd_avail_words = MaxReadInFlight;
+      next_avail_words = MaxReadInFlight; // reset to all availables
     end
     UPD_SLOTS: begin
-      // Do not forward any request until there are enough available bytes
       upd_avail_words = curr_avail_words + wvalid_i;
       // if rem_bytes are unaligned, they could require a +1 word transfer
       if (upd_avail_words < MinAvailSlots && upd_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
@@ -146,6 +152,11 @@ always_comb begin : internal_logic
           next_avail_words = upd_avail_words; // offer the currently available words
         end
       end
+    end
+    WAIT_LAST: begin
+      // wait until all the read data have been written to the LLC
+      upd_avail_words  = curr_avail_words + wvalid_i;
+      next_avail_words = upd_avail_words;
     end
     default : ;
   endcase
@@ -174,6 +185,19 @@ always_comb begin : output_logic
         //  num_bytes_to_llc_o = DataType; // offer at least one data type
         //else
         num_bytes_to_llc_o = (upd_avail_words-1) << LogDataType; // offer the currently available bytes
+      end
+    end
+    WAIT_LAST: begin
+      if (req_accepted_i && !splitter_en_i) begin
+        req_valid_o = 1'b1; // new request but no splitting needed
+      end else if (req_accepted_i && splitter_en_i) begin
+        if (upd_avail_words < MinAvailSlots && upd_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
+          num_bytes_to_llc_o = '0;
+          req_valid_o = 1'b0;
+        end else begin
+          req_valid_o = 1'b1;
+          num_bytes_to_llc_o = (upd_avail_words-1) << LogDataType; // offer the currently available bytes
+        end
       end
     end
     default : ;

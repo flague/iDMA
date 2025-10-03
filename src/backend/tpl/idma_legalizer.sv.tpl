@@ -318,6 +318,8 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     page_len_t num_bytes_to_llc;
     page_len_t c_num_bytes;
     logic [7:0] transferred_words; // max burst size is 256
+    logic      llc_to_llc_transfer_d;
+    logic      llc_to_llc_transfer_q;
     logic      llc_to_llc_transfer;
     logic      llc_split_valid;
 
@@ -345,9 +347,13 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     // make sure that there is enough tolerance in the FIFO depth
     // for this worst case
     assign transferred_words = (w_num_bytes + w_addr_offset - 'd1) >> OffsetWidth;
-    assign llc_to_llc_transfer =  r_tf_q.valid & w_tf_q.valid & 
-                                is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, r_tf_q.addr) &
-                                is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, w_tf_q.addr);
+    
+    assign llc_to_llc_transfer_d = ready_o & valid_i &
+                                is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, req_i.src_addr) &
+                                is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, req_i.dst_addr);
+    `FFL(llc_to_llc_transfer_q, llc_to_llc_transfer_d, (ready_o && valid_i) || (w_done && r_done), '0, clk_i, rst_ni);
+    assign llc_to_llc_transfer = (ready_o && valid_i) ? llc_to_llc_transfer_d : llc_to_llc_transfer_q;
+
 %endif
 %endfor
 % endif
@@ -446,7 +452,7 @@ w_num_bytes_to_pb = w_page_num_bytes_to_pb;
 
 % for protocol in used_protocols:
 % if llc_coherence[protocol] == 'true':
-    assign c_num_bytes = (llc_to_llc_transfer && (num_bytes_to_llc < c_num_bytes_to_pb)) ?
+    assign c_num_bytes = (llc_to_llc_transfer_q && (num_bytes_to_llc < c_num_bytes_to_pb)) ?
                      num_bytes_to_llc : c_num_bytes_to_pb;
 % endif
 % endfor
@@ -785,9 +791,10 @@ ${database[protocol]['legalizer_write_data_path']}
     // Assertions
     //--------------------------------------
     // only support the decomposition of incremental bursts
+    `ifndef VERILATOR
     `ASSERT_NEVER(OnlyIncrementalBurstsSRC, (ready_o & valid_i &
                   req_i.opt.src.burst != axi_pkg::BURST_INCR), clk_i, !rst_ni)
     `ASSERT_NEVER(OnlyIncrementalBurstsDST, (ready_o & valid_i &
                   req_i.opt.dst.burst != axi_pkg::BURST_INCR), clk_i, !rst_ni)
-
+    `endif
 endmodule
