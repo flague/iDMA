@@ -156,7 +156,15 @@ always_comb begin : internal_logic
     WAIT_LAST: begin
       // wait until all the read data have been written to the LLC
       upd_avail_words  = curr_avail_words + wvalid_i;
-      next_avail_words = upd_avail_words;
+      if (upd_avail_words < MinAvailSlots && upd_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
+        next_avail_words = upd_avail_words;
+      end else begin
+        if (transfer_valid_i) begin
+          next_avail_words = upd_avail_words - words_transfer_i - 1;
+        end else begin
+          next_avail_words = upd_avail_words; // offer the currently available words
+        end
+      end
     end
     default : ;
   endcase
