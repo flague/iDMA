@@ -138,7 +138,11 @@ always_comb begin : internal_logic
     RESET: ;
     IDLE: begin
       upd_avail_words = MaxReadInFlight;
-      next_avail_words = MaxReadInFlight; // reset to all availables
+      if (splitter_en_i && req_accepted_i && transfer_valid_i) begin // added the first two NOW
+          next_avail_words = MaxReadInFlight - words_transfer_i - 1;
+      end else begin
+        next_avail_words = MaxReadInFlight; // reset to all availables
+      end
     end
     UPD_SLOTS: begin
       upd_avail_words = curr_avail_words + wvalid_i;
@@ -180,7 +184,10 @@ always_comb begin : output_logic
   case (curr_state)
     RESET: ;
     IDLE: begin
-      req_valid_o = 1'b1; // pass the request, needed to correctly sample the incoming req
+      req_valid_o = 1'b1;
+      if (req_accepted_i && splitter_en_i) begin
+        num_bytes_to_llc_o = (MaxReadInFlight-1) << LogDataType; // offer the currently available bytes
+      end
     end
     UPD_SLOTS: begin
       // Do not forward any request until there are enough available bytes
