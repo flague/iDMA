@@ -939,6 +939,7 @@ w_req.decouple_aw || (w_req.w_dp_req.dst_protocol inside {\
     //--------------------------------------
     // Assertions
     //--------------------------------------
+    `ifndef VERILATOR
     `IDMA_NONSYNTH_BLOCK(
     initial begin : proc_assert_params
         axi_addr_width : assert(AddrWidth >= 32'd12) else
@@ -960,5 +961,6 @@ w_req.decouple_aw || (w_req.w_dp_req.dst_protocol inside {\
             $fatal(1, "Parameter TFLenWidth has to be <= AddrWidth!");
     end
     )
+    `endif
 
 endmodule
