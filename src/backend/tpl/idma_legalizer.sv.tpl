@@ -351,7 +351,7 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     assign llc_to_llc_transfer_d = ready_o & valid_i &
                                 is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, req_i.src_addr) &
                                 is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, req_i.dst_addr);
-    `FFL(llc_to_llc_transfer_q, llc_to_llc_transfer_d, (ready_o && valid_i) || (w_done && r_done), '0, clk_i, rst_ni);
+    `FFL(llc_to_llc_transfer_q, llc_to_llc_transfer_d, (ready_o && valid_i), '0, clk_i, rst_ni);
     assign llc_to_llc_transfer = (ready_o && valid_i) ? llc_to_llc_transfer_d : llc_to_llc_transfer_q;
 
 %endif
