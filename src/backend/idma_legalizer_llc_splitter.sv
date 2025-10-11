@@ -80,7 +80,7 @@ module idma_legalizer_llc_splitter #(
 typedef enum logic [1:0] {
   RESET     = 2'd0,
   IDLE      = 2'd1,
-  UPD_SLOTS = 2'd2,
+  UPD_SLOTS = 2'd2
  // WAIT_LAST = 2'd3
 } state_t;
 
