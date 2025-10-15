@@ -30,7 +30,7 @@ module idma_backend_${name_uniqueifier} #(
     /// The depth of the memory system the backend is attached to
     parameter int unsigned MemSysDepth      = 32'd0,
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+% if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
     /// RFIFO Depth: how many reads (rvalid) can be sent
     /// without receiving a write completion (wvalid)
     parameter int unsigned MaxReadInFlight  = 32'd16,
@@ -440,7 +440,7 @@ _rsp_t ${protocol}_write_rsp_i,
             .DataWidth         ( DataWidth         ),
             .AddrWidth         ( AddrWidth         ),
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
             .MaxReadInFlight      ( MaxReadInFlight      ),
             .MinAvailSlots        ( MinAvailSlots        ),
             .CachedRegionAddrBase ( CachedRegionAddrBase ),
@@ -467,7 +467,7 @@ _rsp_t ${protocol}_write_rsp_i,
             .r_ready_i ( r_ready           ),
             .w_ready_i ( w_ready           ),
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+% if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
             .wvalid_i  ( axi_write_req_o.w_valid && axi_write_rsp_i.w_ready ),
 % endif
 % endfor

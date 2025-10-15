@@ -22,7 +22,7 @@ module idma_legalizer_${name_uniqueifier} #(
     /// Address width
     parameter int unsigned AddrWidth       = 32'd24,
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
     /// RFIFO Depth: how many reads (rvalid) can be sent
     /// without receiving a write completion (wvalid)
     parameter int unsigned MaxReadInFlight  = 32'd16,
@@ -79,7 +79,7 @@ module idma_legalizer_${name_uniqueifier} #(
     input  logic w_ready_i,
 
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
     /// Write valid received from downstream
     /// This is used to throttle the read requests in case of LLC to LLC transfers
     input  logic wvalid_i,
@@ -281,7 +281,7 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     
 % if no_read_bursting or has_page_read_bursting:
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
 
     //--------------------------
     // Read - LLC boundary check
@@ -451,7 +451,7 @@ w_num_bytes_to_pb = w_page_num_bytes_to_pb;
                                 w_num_bytes_to_pb : r_num_bytes_to_pb;
 
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
     assign c_num_bytes = (llc_to_llc_transfer_q && (num_bytes_to_llc < c_num_bytes_to_pb)) ?
                      num_bytes_to_llc : c_num_bytes_to_pb;
 % endif
@@ -463,7 +463,7 @@ w_num_bytes_to_pb = w_page_num_bytes_to_pb;
     always_comb begin : proc_num_bytes_possible
         // Default: Coupled
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
         r_num_bytes_possible = c_num_bytes;
         w_num_bytes_possible = c_num_bytes;
 % else:
@@ -759,7 +759,7 @@ ${database[protocol]['legalizer_write_data_path']}
             w_valid_o = w_tf_q.valid & w_ready_i & !flush_i;
         end else begin
 % for protocol in used_protocols:
-% if llc_coherence[protocol] == 'true':
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
             r_tf_ena  = (r_ready_i & w_ready_i & !flush_i & llc_split_valid) | kill_i;
             w_tf_ena  = (r_ready_i & w_ready_i & !flush_i & llc_split_valid) | kill_i;
 
