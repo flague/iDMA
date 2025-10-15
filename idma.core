@@ -1,0 +1,144 @@
+CAPI=2:
+# Created by bender from the available manifest file.
+
+
+name: ::idma:0.6.5
+filesets:
+  rtl:
+    file_type: systemVerilogSource
+    files:
+    - src/idma_pkg.sv
+    - src/backend/idma_axil_read.sv
+    - src/backend/idma_axil_write.sv
+    - src/backend/idma_axi_read.sv
+    - src/backend/idma_axi_write.sv
+    - src/backend/idma_axis_read.sv
+    - src/backend/idma_axis_write.sv
+    - src/backend/idma_channel_coupler.sv
+    - src/backend/idma_dataflow_element.sv
+    - src/backend/idma_error_handler.sv
+    - src/backend/idma_init_read.sv
+    - src/backend/idma_init_write.sv
+    - src/backend/idma_legalizer_llc_splitter.sv
+    - src/backend/idma_legalizer_page_splitter.sv
+    - src/backend/idma_legalizer_pow2_splitter.sv
+    - src/backend/idma_obi_read.sv
+    - src/backend/idma_obi_write.sv
+    - src/backend/idma_tilelink_read.sv
+    - src/backend/idma_tilelink_write.sv
+    - target/rtl/idma_generated.sv
+    - src/midend/idma_mp_dist_midend.sv
+    - src/midend/idma_mp_split_midend.sv
+    - src/midend/idma_nd_midend.sv
+    - src/midend/idma_rt_midend.sv
+    - src/frontend/desc64/idma_desc64_ar_gen.sv
+    - src/frontend/desc64/idma_desc64_ar_gen_prefetch.sv
+    - src/frontend/desc64/idma_desc64_reader.sv
+    - src/frontend/desc64/idma_desc64_reader_gater.sv
+    - src/frontend/desc64/idma_desc64_reshaper.sv
+    - src/frontend/idma_transfer_id_gen.sv
+    - target/rtl/idma_desc64_reg_pkg.sv
+    - src/frontend/desc64/idma_desc64_reg_wrapper.sv
+    - src/frontend/desc64/idma_desc64_top.sv
+    depend:
+    - pulp-platform.org::axi:0.39.8
+    - ::axi_stream:0.1.1
+    - pulp-platform.org::common_cells:1.38.0
+    - tool_modelsim ? (pulp-platform.org::common_verification:0.2.5)
+    - ::register_interface:0.4.6
+    - ::obi:0.1.7
+  snitch_cluster_rtl:
+    file_type: systemVerilogSource
+    files:
+    - src/frontend/inst64/idma_inst64_events.sv
+    - src/frontend/inst64/idma_inst64_top.sv
+    depend:
+    - pulp-platform.org::axi:0.39.8
+    - ::axi_stream:0.1.1
+    - pulp-platform.org::common_cells:1.38.0
+    - tool_modelsim ? (pulp-platform.org::common_verification:0.2.5)
+    - ::register_interface:0.4.6
+    - ::obi:0.1.7
+  rtl_snitch_cluster:
+    file_type: systemVerilogSource
+    files:
+    - src/frontend/inst64/idma_inst64_snitch_pkg.sv
+    depend:
+    - pulp-platform.org::axi:0.39.8
+    - ::axi_stream:0.1.1
+    - pulp-platform.org::common_cells:1.38.0
+    - tool_modelsim ? (pulp-platform.org::common_verification:0.2.5)
+    - ::register_interface:0.4.6
+    - ::obi:0.1.7
+  idma_test:
+    file_type: systemVerilogSource
+    files:
+    - test/idma_intf.sv
+    - test/idma_test.sv
+    - test/frontend/tb_idma_desc64_top.sv
+    - test/frontend/tb_idma_desc64_bench.sv
+    - test/future/idma_tb_per2axi.sv
+    - test/future/TLToAXI4.v:
+        file_type: verilogSource
+    - test/midend/tb_idma_nd_midend.sv
+    - test/midend/tb_idma_rt_midend.sv
+    - test/future/idma_obi2axi_bridge.sv
+    - test/future/idma_tilelink2axi_bridge.sv
+    - target/rtl/tb_idma_generated.sv
+    depend:
+    - pulp-platform.org::axi:0.39.8
+    - ::axi_stream:0.1.1
+    - pulp-platform.org::common_cells:1.38.0
+    - tool_modelsim ? (pulp-platform.org::common_verification:0.2.5)
+    - ::register_interface:0.4.6
+    - ::obi:0.1.7
+  synth:
+    file_type: systemVerilogSource
+    files:
+    - src/frontend/desc64/idma_desc64_synth_pkg.sv
+    - src/midend/idma_mp_midend_synth_pkg.sv
+    - src/midend/idma_nd_midend_synth.sv
+    - src/midend/idma_rt_midend_synth_pkg.sv
+    - src/frontend/desc64/idma_desc64_synth.sv
+    - src/midend/idma_mp_midend_synth.sv
+    - src/midend/idma_rt_midend_synth.sv
+    depend:
+    - pulp-platform.org::axi:0.39.8
+    - ::axi_stream:0.1.1
+    - pulp-platform.org::common_cells:1.38.0
+    - tool_modelsim ? (pulp-platform.org::common_verification:0.2.5)
+    - ::register_interface:0.4.6
+    - ::obi:0.1.7
+  files_rtl:
+    file_type: systemVerilogSource
+    files:
+    - src/include/tilelink/typedef.svh:
+        is_include_file: true
+        include_path: src/include
+    - src/include/idma/typedef.svh:
+        is_include_file: true
+        include_path: src/include
+    - src/include/idma/guard.svh:
+        is_include_file: true
+        include_path: src/include
+    - target/rtl/include/idma/tracer.svh:
+        is_include_file: true
+        include_path: target/rtl/include
+    - test/include/tb_tasks.svh:
+        is_include_file: true
+        include_path: test
+    depend:
+    - pulp-platform.org::axi:0.39.8
+    - ::axi_stream:0.1.1
+    - pulp-platform.org::common_cells:1.38.0
+    - tool_modelsim ? (pulp-platform.org::common_verification:0.2.5)
+    - ::register_interface:0.4.6
+    - ::obi:0.1.7
+targets:
+  default:
+    filesets:
+    - rtl
+    - files_rtl
+    toplevel: idma_top
+  simulation:
+    filesets: []
