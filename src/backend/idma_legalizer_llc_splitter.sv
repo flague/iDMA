@@ -147,7 +147,7 @@ always_comb begin : internal_logic
     UPD_SLOTS: begin
       upd_avail_words = curr_avail_words + wvalid_i;
       // if rem_bytes are unaligned, they could require a +1 word transfer
-      if (upd_avail_words < MinAvailSlots && upd_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
+      if (curr_avail_words < MinAvailSlots && curr_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
         next_avail_words = upd_avail_words;
       end else begin
         if (transfer_valid_i) begin
@@ -193,7 +193,7 @@ always_comb begin : output_logic
     end
     UPD_SLOTS: begin
       // Do not forward any request until there are enough available bytes
-      if (upd_avail_words < MinAvailSlots && upd_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
+      if (curr_avail_words < MinAvailSlots && curr_avail_words <= ((rem_bytes_i >> LogDataType) + 1)) begin
         num_bytes_to_llc_o = '0;
         req_valid_o = 1'b0;
       end else begin
@@ -201,7 +201,7 @@ always_comb begin : output_logic
         //if ((upd_avail_words-1) == 0) // should never happen due to the +1 in the rem_bytes check
         //  num_bytes_to_llc_o = DataType; // offer at least one data type
         //else
-        num_bytes_to_llc_o = (upd_avail_words-1) << LogDataType; // offer the currently available bytes
+        num_bytes_to_llc_o = (curr_avail_words-1) << LogDataType; // offer the currently available bytes
       end
     end
     //WAIT_LAST: begin
