@@ -23,6 +23,8 @@ module idma_legalizer_${name_uniqueifier} #(
     parameter int unsigned AddrWidth       = 32'd24,
 % for protocol in used_protocols:
 %  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+    /// Enable LLC legalizer through this flag
+    parameter bit          LLC_Legalizer   = 1'b1,
     /// RFIFO Depth: how many reads (rvalid) can be sent
     /// without receiving a write completion (wvalid)
     parameter int unsigned MaxReadInFlight  = 32'd16,
@@ -323,36 +325,47 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     logic      llc_to_llc_transfer;
     logic      llc_split_valid;
 
-    idma_legalizer_llc_splitter #(
-      .MaxReadInFlight ( MaxReadInFlight  ), // could be -2 in the worst case
-      .MinAvailSlots   ( MinAvailSlots    ),
-      .DataType        ( DataWidth/8      ),
-      .llc_len_t       ( page_len_t       ),
-      .tf_len_t        ( tf_len_t         )
-    ) i_llc_splitter (
-      .clk_i              ( clk_i                     ),
-      .rst_ni             ( rst_ni                    ),
-      .req_accepted_i     ( ready_o & valid_i         ),
-      .splitter_en_i      ( llc_to_llc_transfer       ),
-      .words_transfer_i   ( transferred_words         ), // final length of the transfer in bytes
-      .transfer_valid_i   ( w_valid_o                 ),
-      .rem_bytes_i        ( w_tf_q.length             ),
-      .wvalid_i           ( wvalid_i                  ),
-      .num_bytes_to_llc_o ( num_bytes_to_llc          ),
-      .req_valid_o        ( llc_split_valid           )
-    );
+    if(LLC_Legalizer) begin : gen_llc_legalizer_logic
+        idma_legalizer_llc_splitter #(
+          .MaxReadInFlight ( MaxReadInFlight  ), // could be -2 in the worst case
+          .MinAvailSlots   ( MinAvailSlots    ),
+          .DataType        ( DataWidth/8      ),
+          .llc_len_t       ( page_len_t       ),
+          .tf_len_t        ( tf_len_t         )
+        ) i_llc_splitter (
+          .clk_i              ( clk_i                     ),
+          .rst_ni             ( rst_ni                    ),
+          .req_accepted_i     ( ready_o & valid_i         ),
+          .splitter_en_i      ( llc_to_llc_transfer       ),
+          .words_transfer_i   ( transferred_words         ), // final length of the transfer in bytes
+          .transfer_valid_i   ( w_valid_o                 ),
+          .rem_bytes_i        ( w_tf_q.length             ),
+          .wvalid_i           ( wvalid_i                  ),
+          .num_bytes_to_llc_o ( num_bytes_to_llc          ),
+          .req_valid_o        ( llc_split_valid           )
+        );
     
-    // Use write transferred words to receive the same number of wvalid
-    // the number of reads should be at most +2 those of the write
-    // make sure that there is enough tolerance in the FIFO depth
-    // for this worst case
-    assign transferred_words = (w_num_bytes + w_addr_offset - 'd1) >> OffsetWidth;
+        // Use write transferred words to receive the same number of wvalid
+        // the number of reads should be at most +2 those of the write
+        // make sure that there is enough tolerance in the FIFO depth
+        // for this worst case
+        assign transferred_words = (w_num_bytes + w_addr_offset - 'd1) >> OffsetWidth;
+
+        assign llc_to_llc_transfer_d = ready_o & valid_i &
+                                    is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, req_i.src_addr) &
+                                    is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, req_i.dst_addr);
+        `FFL(llc_to_llc_transfer_q, llc_to_llc_transfer_d, (ready_o && valid_i), '0, clk_i, rst_ni);
+        assign llc_to_llc_transfer = (ready_o && valid_i) ? llc_to_llc_transfer_d : llc_to_llc_transfer_q;
     
-    assign llc_to_llc_transfer_d = ready_o & valid_i &
-                                is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, req_i.src_addr) &
-                                is_inside_cacheable_regions(CachedRegionAddrBase, CachedRegionLength, NrCachedRegionRules, req_i.dst_addr);
-    `FFL(llc_to_llc_transfer_q, llc_to_llc_transfer_d, (ready_o && valid_i), '0, clk_i, rst_ni);
-    assign llc_to_llc_transfer = (ready_o && valid_i) ? llc_to_llc_transfer_d : llc_to_llc_transfer_q;
+    end else begin : gen_no_llc_legalizer_logic
+        assign num_bytes_to_llc = '0;
+        // Do not gate others valid
+        assign llc_split_valid = 1'b1;
+        // Never use llc_to_llc transfer params
+        assign llc_to_llc_transfer = 1'b0;
+        assign llc_to_llc_transfer_d = 1'b0;
+        assign llc_to_llc_transfer_q = 1'b0;
+    end
 
 %endif
 %endfor

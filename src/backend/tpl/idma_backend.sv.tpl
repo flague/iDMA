@@ -31,6 +31,8 @@ module idma_backend_${name_uniqueifier} #(
     parameter int unsigned MemSysDepth      = 32'd0,
 % for protocol in used_protocols:
 % if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+    /// Disable LLC legalizer through this flag
+    parameter bit LLC_Legalizer             = 1'b1,
     /// RFIFO Depth: how many reads (rvalid) can be sent
     /// without receiving a write completion (wvalid)
     parameter int unsigned MaxReadInFlight  = 32'd16,
@@ -441,6 +443,7 @@ _rsp_t ${protocol}_write_rsp_i,
             .AddrWidth         ( AddrWidth         ),
 % for protocol in used_protocols:
 %  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+            .LLC_Legalizer        ( LLC_Legalizer        ),
             .MaxReadInFlight      ( MaxReadInFlight      ),
             .MinAvailSlots        ( MinAvailSlots        ),
             .CachedRegionAddrBase ( CachedRegionAddrBase ),

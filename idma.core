@@ -37,7 +37,6 @@ filesets:
     - src/frontend/desc64/idma_desc64_reader_gater.sv
     - src/frontend/desc64/idma_desc64_reshaper.sv
     - src/frontend/idma_transfer_id_gen.sv
-    - target/rtl/idma_desc64_reg_pkg.sv
     - src/frontend/desc64/idma_desc64_reg_wrapper.sv
     - src/frontend/desc64/idma_desc64_top.sv
     depend:
