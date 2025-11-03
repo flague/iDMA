@@ -22,6 +22,32 @@ module idma_backend_synth_${name_uniqueifier} #(
     parameter int unsigned UserWidth           = 32'd1,
     /// AXI ID width
     parameter int unsigned AxiIdWidth          = 32'd1,
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+    /// Disable LLC legalizer through this flag
+    parameter bit LLC_Legalizer             = 1'b1,
+    /// RFIFO Depth: how many reads (rvalid) can be sent
+    /// without receiving a write completion (wvalid)
+    parameter int unsigned MaxReadInFlight  = 32'd16,
+    /// Min Length of a burst that can be sent
+    parameter int unsigned MinAvailSlots   = 32'd4,
+    /// PMA cache region base address
+    parameter logic [15:0][63:0] CachedRegionAddrBase = {'0},
+    /// PMA cache region rules
+    parameter logic [15:0][63:0] CachedRegionLength = {'0},
+    /// Number of cached region rules
+    parameter int unsigned NrCachedRegionRules = 16,
+% endif
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+    parameter bit StreamingAccelerator    = 1'b1,
+    parameter int unsigned NumStreamAcc   = 32'd1,
+    /// Widening accelerator enabled
+    parameter bit WideningAccelerator     = 1'b1,
+    parameter int unsigned WideningDataWidth    = 32'd32,
+    /// Widening max 1D transfer width (log2(VPU line size))
+    parameter int unsigned WideningMax1DTxWidth = 32'd10,
+% endif
+% endfor
     /// Number of transaction that can be in-flight concurrently
     parameter int unsigned NumAxInFlight       = 32'd3,
     /// The depth of the internal reorder buffer:
@@ -128,7 +154,14 @@ module idma_backend_synth_${name_uniqueifier} #(
     input  logic                   eh_req_valid_i,
     output logic                   eh_req_ready_o,
     input  idma_pkg::idma_eh_req_t eh_req_i,
-
+% for protocol in used_protocols:
+    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+    /// Widening configuration valid
+    // Connect on top if widening implemented, else tie to 0
+    input  logic widening_conf_valid_i,
+    input  logic widening_sign_ext_i,
+    % endif
+% endfor
 % for protocol in used_read_protocols:
 ${database[protocol]['synth_wrapper_ports_read']}
 
@@ -290,6 +323,24 @@ ${p}_${database[p]['write_meta_channel']}_width\
         .AddrWidth            ( AddrWidth               ),
         .AxiIdWidth           ( AxiIdWidth              ),
         .UserWidth            ( UserWidth               ),
+% for protocol in used_protocols:
+% if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+    .LLC_Legalizer             (LLC_Legalizer),
+    .MaxReadInFlight          (MaxReadInFlight),
+    .MinAvailSlots             (MinAvailSlots),
+    .CachedRegionAddrBase      (CachedRegionAddrBase),
+    .CachedRegionLength        (CachedRegionLength),
+    .NrCachedRegionRules       (NrCachedRegionRules),
+% endif
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+    .StreamingAccelerator    (StreamingAccelerator),
+    .NumStreamAcc           (NumStreamAcc),
+    .WideningAccelerator     (WideningAccelerator),
+    .WideningDataWidth       (WideningDataWidth),
+    .WideningMax1DTxWidth    (WideningMax1DTxWidth),
+% endif
+% endfor
+
         .TFLenWidth           ( TFLenWidth              ),
         .MaskInvalidData      ( MaskInvalidData         ),
         .BufferDepth          ( BufferDepth             ),
@@ -339,6 +390,17 @@ ${p}_${database[p]['write_meta_channel']}_width\
         .idma_eh_req_i        ( eh_req_i       ),
         .eh_req_valid_i       ( eh_req_valid_i ),
         .eh_req_ready_o       ( eh_req_ready_o )\
+% for protocol in used_protocols:
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+,
+        .wvalid_o (axi_write_wvalid     )\
+%  endif
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+,
+        .widening_conf_valid_i (widening_conf_valid_i),
+        .widening_sign_ext_i   (widening_sign_ext_i)\
+%  endif
+% endfor
 % for protocol in used_read_protocols:
 ,
 % if database[protocol]['passive_req'] == 'true':

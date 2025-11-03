@@ -32,6 +32,8 @@ def render_legalizer(prot_ids: dict, db: dict, tpl_file: str) -> str:
     for protocol in db:
         if 'llc_coherence' not in db[protocol]:
             db[protocol]['llc_coherence'] = 'false'
+        if 'streaming_accelerator' not in db[protocol]:
+            db[protocol]['streaming_accelerator'] = 'false'
     
     # render for every is
     for prot_id in prot_ids:
@@ -50,7 +52,9 @@ def render_legalizer(prot_ids: dict, db: dict, tpl_file: str) -> str:
         llc_coherence = {}
         for protocol in prot_ids[prot_id]['used']:
             llc_coherence[protocol] = db[protocol]['llc_coherence']
-
+        streaming_accelerator = {}
+        for protocol in prot_ids[prot_id]['used']:
+            streaming_accelerator[protocol] = db[protocol]['streaming_accelerator']
         # Indent read meta channel
         for rp in used_read_prots:
             # format DB entry
@@ -67,6 +71,12 @@ def render_legalizer(prot_ids: dict, db: dict, tpl_file: str) -> str:
                 # format DB entry
                 data_path = indent_block(db[wp]['legalizer_write_data_path'], 3 - swp, 4)
                 db[wp]['legalizer_write_data_path'] = data_path
+            # if datapath exists
+            if 'legalizer_write_data_path_acc' in db[wp]:
+                # format DB entry
+                data_path = indent_block(db[wp]['legalizer_write_data_path_acc'], 3 - swp, 4)
+                db[wp]['legalizer_write_data_path_acc'] = data_path
+
 
         has_page_read_bursting = eval_key(used_read_prots, 'bursts', 'split_at_page_boundary', db)
         has_pow2_read_bursting = eval_key(used_read_prots, 'bursts', 'only_pow2', db)
@@ -79,6 +89,7 @@ def render_legalizer(prot_ids: dict, db: dict, tpl_file: str) -> str:
             'name_uniqueifier': prot_id,
             'database': db,
             'llc_coherence': llc_coherence,
+            'streaming_accelerator': streaming_accelerator,
             'used_read_protocols': used_read_prots,
             'used_write_protocols': used_write_prots,
             'used_protocols': prot_ids[prot_id]['used'],

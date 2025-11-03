@@ -5,7 +5,7 @@
 # Authors:
 # - Tobias Senti <tsenti@ethz.ch>
 
-prefix: "axi"
+prefix: "axillc"
 protocol_enum: "AXI"
 full_name: "AXI4+ATOP"
 tb_define: "PROT_AXI4"
@@ -14,7 +14,7 @@ streaming_accelerator: "true"
 bursts: "split_at_page_boundary"
 page_size: 4096
 max_beats_per_burst: 256
-legalizer_force_decouple: "false"
+legalizer_force_decouple: "true"
 read_meta_channel: "ar_chan"
 write_meta_channel: "aw_chan"
 combined_aw_and_w: "false"
@@ -68,17 +68,6 @@ legalizer_write_data_path: |
         tailer: OffsetWidth'(w_num_bytes + w_addr_offset),
         shift: opt_tf_q.write_shift,
         num_beats: w_req_o.aw_req.axi.aw_chan.len,
-        is_single: w_req_o.aw_req.axi.aw_chan.len == '0
-    };
-legalizer_write_data_path_acc: |
-    w_req_o.w_dp_req = '{
-        dst_protocol: opt_tf_q.dst_protocol,
-        offset: w_addr_offset,
-        tailer: OffsetWidth'(w_num_bytes + w_addr_offset),
-        shift: opt_tf_q.write_shift,
-        num_beats: w_req_o.aw_req.axi.aw_chan.len,
-        num_bytes: w_num_bytes,
-        stream_acc_id: '0, // TODO:assign
         is_single: w_req_o.aw_req.axi.aw_chan.len == '0
     };
 read_template: |

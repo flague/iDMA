@@ -168,6 +168,77 @@ def render_write_mgr_inst(prot_id: str, prot_ids: dict, db: dict) -> dict:
 
     return res
 
+def render_stream_acc_write_mgr_inst(prot_id: str, prot_ids: dict, db: dict) -> dict:
+    """Renders the port instantiations of the stream accumulator write managers"""
+
+    res = {}
+
+    # single read port
+    swp = len(prot_ids[prot_id]['aw']) == 1
+
+    # Render read ports
+    for wp in prot_ids[prot_id]['aw']:
+        tpl_name = 'write_stream_acc_template'
+        # Check first if tpl exists else use the normal one
+        if tpl_name not in db[wp]:
+            tpl_name = 'write_template'
+        # template cleanup
+        db[wp][tpl_name] = '    ' + db[wp][tpl_name].replace('\n', '\n    ')
+        db[wp][tpl_name] = db[wp][tpl_name][:-5]
+
+        if db[wp]['read_slave'] == 'true':
+            write_req_str = f'{wp}_write_req_t'
+            write_rsp_str = f'{wp}_write_rsp_t'
+        else:
+            write_req_str = f'{wp}_req_t'
+            write_rsp_str = f'{wp}_rsp_t'
+
+        if swp:
+            write_dp_valid_in = 'w_dp_valid_i'
+            write_dp_ready_out = 'w_dp_ready_o'
+            write_dp_response = 'w_dp_rsp_o'
+            write_dp_valid_out = 'w_dp_valid_o'
+            write_dp_ready_in = 'w_dp_ready_i'
+            write_meta_request = 'aw_req_i'
+            write_meta_valid = 'aw_valid_i'
+            write_meta_ready = 'aw_ready_o'
+            buffer_out_ready = 'buffer_out_ready'
+        else:
+            write_dp_valid_in = f'''\
+(w_dp_req_i.dst_protocol == idma_pkg::{db[wp]["protocol_enum"]}) & w_dp_req_valid\
+'''
+            write_dp_ready_out = f'{wp}_w_dp_ready'
+            write_dp_response = f'{wp}_w_dp_rsp'
+            write_dp_valid_out = f'{wp}_w_dp_rsp_valid'
+            write_dp_ready_in = f'{wp}_w_dp_rsp_ready'
+            write_meta_request = 'aw_req_i.aw_req'
+            write_meta_valid = f'''\
+(aw_req_i.dst_protocol == idma_pkg::{db[wp]["protocol_enum"]}) & aw_valid_i\
+'''
+            write_meta_ready = f'{wp}_aw_ready'
+            buffer_out_ready = f'{wp}_buffer_out_ready'
+
+        write_port_context = {
+            'database': db,
+            'req_t': write_req_str,
+            'rsp_t': write_rsp_str,
+            'w_dp_valid_i': write_dp_valid_in,
+            'w_dp_ready_o': write_dp_ready_out,
+            'w_dp_rsp_o': write_dp_response,
+            'w_dp_valid_o': write_dp_valid_out,
+            'w_dp_ready_i': write_dp_ready_in,
+            'write_meta_request': write_meta_request,
+            'write_meta_valid': write_meta_valid,
+            'write_meta_ready': write_meta_ready,
+            'write_request': f'{wp}_write_req_o',
+            'write_response': f'{wp}_write_rsp_i',
+            'buffer_out_ready': buffer_out_ready
+        }
+
+        # render
+        res[wp] = Template(db[wp][tpl_name]).render(**write_port_context)
+
+    return res
 
 def render_transport_layer(prot_ids: dict, db: dict, tpl_file: str) -> str:
     """Generate Transport Layer"""
@@ -175,21 +246,38 @@ def render_transport_layer(prot_ids: dict, db: dict, tpl_file: str) -> str:
 
     with open(tpl_file, 'r', encoding='utf-8') as templ_file:
         transport_tpl = templ_file.read()
+    
+    for protocol in db:
+        if 'llc_coherence' not in db[protocol]:
+            db[protocol]['llc_coherence'] = 'false'
+        if 'streaming_accelerator' not in db[protocol]:
+            db[protocol]['streaming_accelerator'] = 'false'
 
     # render for every is
     for prot_id in prot_ids:
-
+        # Add streaming_accelerator key to all protocols in the database
+        # Collect llc_coherence flags for all used protocols
+        llc_coherence = {}
+        streaming_accelerator = {}
+        for protocol in prot_ids[prot_id]['used']:
+            llc_coherence[protocol] = db[protocol]['llc_coherence']
+            streaming_accelerator[protocol] = db[protocol]['streaming_accelerator']
+        
+        
         # Render Transport Layer
         context = {
             'name_uniqueifier': prot_id,
             'database': db,
+            'llc_coherence': llc_coherence,
+            'streaming_accelerator': streaming_accelerator,
             'used_read_protocols': prot_ids[prot_id]['ar'],
             'used_write_protocols': prot_ids[prot_id]['aw'],
             'used_protocols': prot_ids[prot_id]['used'],
             'one_read_port': len(prot_ids[prot_id]['ar']) == 1,
             'one_write_port': len(prot_ids[prot_id]['aw']) == 1,
             'rendered_read_ports': render_read_mgr_inst(prot_id, prot_ids, db),
-            'rendered_write_ports': render_write_mgr_inst(prot_id, prot_ids, db)
+            'rendered_write_ports': render_write_mgr_inst(prot_id, prot_ids, db),
+            'rendered_stream_acc_write_ports': render_stream_acc_write_mgr_inst(prot_id, prot_ids, db)
         }
 
         # render

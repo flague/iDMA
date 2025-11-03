@@ -24,6 +24,8 @@ def render_backend(prot_ids: dict, db: dict, tpl_file: str) -> str:
     for protocol in db:
         if 'llc_coherence' not in db[protocol]:
             db[protocol]['llc_coherence'] = 'false'
+        if 'streaming_accelerator' not in db[protocol]:
+            db[protocol]['streaming_accelerator'] = 'false'
     # render for every is
     for prot_id in prot_ids:
 
@@ -35,7 +37,9 @@ def render_backend(prot_ids: dict, db: dict, tpl_file: str) -> str:
         llc_coherence = {}
         for protocol in prot_ids[prot_id]['used']:
             llc_coherence[protocol] = db[protocol]['llc_coherence']
-
+        streaming_accelerator = {}
+        for protocol in prot_ids[prot_id]['used']:
+            streaming_accelerator[protocol] = db[protocol]['streaming_accelerator']
         # single port IPs?
         srp = len(used_read_prots) == 1
         swp = len(used_write_prots) == 1
@@ -45,6 +49,7 @@ def render_backend(prot_ids: dict, db: dict, tpl_file: str) -> str:
             'name_uniqueifier': prot_id,
             'database': db,
             'llc_coherence': llc_coherence,
+            'streaming_accelerator': streaming_accelerator,
             'used_read_protocols': used_read_prots,
             'used_write_protocols': used_write_prots,
             'used_protocols': prot_ids[prot_id]['used'],

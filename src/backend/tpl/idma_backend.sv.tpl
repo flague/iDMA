@@ -45,6 +45,15 @@ module idma_backend_${name_uniqueifier} #(
     /// Number of cached region rules
     parameter int unsigned NrCachedRegionRules = 16,
 % endif
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+    parameter bit StreamingAccelerator    = 1'b1,
+    parameter int unsigned NumStreamAcc   = 32'd1,
+    /// Widening accelerator enabled
+    parameter bit WideningAccelerator     = 1'b1,
+    parameter int unsigned WideningDataWidth    = 32'd32,
+    /// Widening max 1D transfer width (log2(VPU line size))
+    parameter int unsigned WideningMax1DTxWidth = 32'd10,
+% endif
 % endfor
     /// Should both data shifts be done before the dataflow element?
     /// If this is enabled, then the data inserted into the dataflow element
@@ -136,6 +145,14 @@ module idma_backend_${name_uniqueifier} #(
     input  logic eh_req_valid_i,
     /// Error handler request ready
     output logic eh_req_ready_o,
+% for protocol in used_protocols:
+    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+    /// Widening configuration valid
+    // Connect on top if widening implemented, else tie to 0
+    input  logic widening_conf_valid_i,
+    input  logic widening_sign_ext_i,
+    % endif
+% endfor
 % for protocol in used_read_protocols:
 
     /// ${database[protocol]['full_name']} read request
@@ -241,13 +258,24 @@ _rsp_t ${protocol}_write_rsp_i,
     /// - `shift`: The amount the data needs to be shifted
     /// - `num_beats`: The number of beats this burst consist of
     /// - `is_single`: Is this transfer just one beat long? `(len == 0)`
+% for protocol in used_protocols:
+    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
+    localparam StreamAccIdWidth = NumStreamAcc > 1 ? $clog2(NumStreamAcc) : 1;
+    %endif
+% endfor
     typedef struct packed {
         idma_pkg::protocol_e dst_protocol;
         offset_t             offset;
         offset_t             tailer;
         offset_t             shift;
         axi_pkg::len_t       num_beats;
+% for protocol in used_protocols:
+    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
+        logic [WideningMax1DTxWidth-1:0] num_bytes;
+        logic [StreamAccIdWidth-1:0] stream_acc_id;
         logic                is_single;
+    %  endif
+% endfor
     } w_dp_req_t;
 
     /// The datapath write response type provides feedback from the write part of the datapath:
@@ -435,7 +463,13 @@ _rsp_t ${protocol}_write_rsp_i,
     //--------------------------------------
     // Legalization
     //--------------------------------------
+% for protocol in used_protocols:
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+    logic axi_write_wvalid;
+% endif
+% endfor
     if (HardwareLegalizer) begin : gen_hw_legalizer
+
         // hardware legalizer is present
         idma_legalizer_${name_uniqueifier} #(
             .CombinedShifter   ( CombinedShifter   ),
@@ -471,7 +505,7 @@ _rsp_t ${protocol}_write_rsp_i,
             .w_ready_i ( w_ready           ),
 % for protocol in used_protocols:
 % if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
-            .wvalid_i  ( axi_write_req_o.w_valid && axi_write_rsp_i.w_ready ),
+            .wvalid_i  ( axi_write_wvalid && axi_write_rsp_i.w_ready ),
 % endif
 % endfor
             .flush_i   ( legalizer_flush   ),
@@ -742,6 +776,16 @@ _rsp_t ${protocol}_write_rsp_i,
 % endif
 % for protocol in used_protocols:
 ,
+% if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+        .LLC_Legalizer                ( LLC_Legalizer                ),
+% endif
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+        .StreamingAccelerator        ( StreamingAccelerator        ),
+        .NumStreamAcc                 ( NumStreamAcc                 ),
+        .WideningAccelerator          ( WideningAccelerator          ),
+        .WideningDataWidth             ( WideningDataWidth             ),
+        .WideningMax1DTxWidth         ( WideningMax1DTxWidth         ),
+%endif
     % if database[protocol]['read_slave'] == 'true':
         % if (protocol in used_read_protocols) and (protocol in used_write_protocols):
         .${protocol}_read_req_t              ( ${protocol}_read_req_t              ),
@@ -765,6 +809,17 @@ _rsp_t ${protocol}_write_rsp_i,
         .clk_i           ( clk_i                ),
         .rst_ni          ( rst_ni               ),
         .testmode_i      ( testmode_i           )\
+% for protocol in used_protocols:
+%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+,
+        .wvalid_o (axi_write_wvalid     )\
+%  endif
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+,
+        .widening_conf_valid_i (widening_conf_valid_i),
+        .widening_sign_ext_i   (widening_sign_ext_i)\
+%  endif
+% endfor
 % for protocol in used_read_protocols:
 ,
 % if database[protocol]['passive_req'] == 'true':

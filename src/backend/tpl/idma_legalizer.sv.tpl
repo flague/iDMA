@@ -669,6 +669,12 @@ ${database[protocol]['legalizer_read_meta_channel']}
 % if one_write_port:
     always_comb begin
 ${database[used_write_protocols[0]]['legalizer_write_meta_channel']}
+% for protocol in used_write_protocols:
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_write_protocols and one_write_port:
+% if 'legalizer_write_data_path_acc' in database[used_write_protocols[0]]:
+${database[used_write_protocols[0]]['legalizer_write_data_path_acc']}
+% endif
+%else:
     % if 'legalizer_write_data_path' in database[used_write_protocols[0]]:
 ${database[used_write_protocols[0]]['legalizer_write_data_path']}
     % else:
@@ -681,7 +687,9 @@ ${database[used_write_protocols[0]]['legalizer_write_data_path']}
             is_single:    1'b1
         };
     % endif
+%endif
     end
+% endfor
 % else:
     always_comb begin : gen_write_meta_channel
         w_req_o.aw_req = '0;
