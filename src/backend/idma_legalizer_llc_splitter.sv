@@ -102,7 +102,7 @@ always_comb begin : proc_fsm
     end
 
     IDLE: begin
-      if (req_accepted_i && splitter_en_i) begin
+      if ((req_accepted_i || transfer_valid_i) && splitter_en_i) begin
         next_state = UPD_SLOTS;
       end
     end
@@ -138,7 +138,7 @@ always_comb begin : internal_logic
     RESET: ;
     IDLE: begin
       upd_avail_words = MaxReadInFlight;
-      if (splitter_en_i && req_accepted_i && transfer_valid_i) begin // added the first two NOW
+      if (splitter_en_i && (req_accepted_i || transfer_valid_i)) begin // added the first two NOW
           next_avail_words = MaxReadInFlight - words_transfer_i - 1;
       end else begin
         next_avail_words = MaxReadInFlight; // reset to all availables
