@@ -46,6 +46,15 @@ legalizer_read_meta_channel: |
         region: opt_tf_q.src_axi_opt.region,
         user: '0
     };
+legalizer_read_data_path: |
+    r_req_o.r_dp_req = '{
+        src_protocol: opt_tf_q.src_protocol,
+        offset:       r_addr_offset,
+        tailer:       OffsetWidth'(r_num_bytes + r_addr_offset),
+        shift:        opt_tf_q.read_shift,
+        decouple_aw:  opt_tf_q.decouple_aw,
+        is_single:    r_req_o.ar_req.axi.ar_chan.len == '0
+    };
 legalizer_write_meta_channel: |
     w_req_o.aw_req.axi.aw_chan = '{
         id: opt_tf_q.axi_id,

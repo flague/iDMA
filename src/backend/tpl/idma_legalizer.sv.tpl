@@ -654,8 +654,17 @@ ${database[protocol]['legalizer_read_meta_channel']}
         endcase
     end
 % endif
+% for protocol in used_read_protocols:
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and one_read_port and 'legalizer_read_data_path_acc' in database[used_read_protocols[0]]:
+${database[used_read_protocols[0]]['legalizer_read_data_path_acc']}
+%else:
+    % if 'legalizer_read_data_path' in database[used_read_protocols[0]]:
+${database[used_read_protocols[0]]['legalizer_read_data_path']}
+    % else:
 
     // assign the signals needed to set-up the read data path
+    // TODO: this is wrong, the is_single is not correct in this way,
+    // must be equal to ar_req_o.axi.ar_chan.len == '0, so probably needs a tpl version
     assign r_req_o.r_dp_req = '{
         src_protocol: opt_tf_q.src_protocol,
         offset:       r_addr_offset,
@@ -664,7 +673,9 @@ ${database[protocol]['legalizer_read_meta_channel']}
         decouple_aw:  opt_tf_q.decouple_aw,
         is_single:    r_num_bytes <= StrbWidth
     };
-
+    % endif
+%endif
+% endfor
     // Write meta channel and data path
 % if one_write_port:
     always_comb begin
