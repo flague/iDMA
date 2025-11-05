@@ -79,17 +79,6 @@ legalizer_write_data_path: |
         num_beats: w_req_o.aw_req.axi.aw_chan.len,
         is_single: w_req_o.aw_req.axi.aw_chan.len == '0
     };
-legalizer_write_data_path_acc: |
-    w_req_o.w_dp_req = '{
-        dst_protocol: opt_tf_q.dst_protocol,
-        offset: w_addr_offset,
-        tailer: OffsetWidth'(w_num_bytes + w_addr_offset),
-        shift: opt_tf_q.write_shift,
-        num_beats: w_req_o.aw_req.axi.aw_chan.len,
-        num_bytes: w_num_bytes,
-        stream_acc_id: '0, // TODO:assign
-        is_single: w_req_o.aw_req.axi.aw_chan.len == '0
-    };
 read_template: |
     idma_axi_read #(
         .StrbWidth  ( StrbWidth           ),

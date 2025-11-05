@@ -271,7 +271,6 @@ _rsp_t ${protocol}_write_rsp_i,
         axi_pkg::len_t       num_beats;
 % for protocol in used_protocols:
     % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
-        logic [WideningMax1DTxWidth-1:0] num_bytes;
         logic [StreamAccIdWidth-1:0] stream_acc_id;
         logic                is_single;
     %  endif
