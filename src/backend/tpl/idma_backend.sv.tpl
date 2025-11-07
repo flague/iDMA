@@ -351,6 +351,12 @@ _rsp_t ${protocol}_write_rsp_i,
         idma_pkg::axi_options_t src_axi_opt;
         idma_pkg::axi_options_t dst_axi_opt;
         logic                   super_last;
+% for protocol in used_protocols:
+    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
+        logic [2:0]             r_stream_acc_id;
+        logic [2:0]             w_stream_acc_id;
+    %  endif
+% endfor
     } idma_mut_tf_opt_t;
 
     /// The mutable transfer type holds important information that is mutated by the

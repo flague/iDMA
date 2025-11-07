@@ -63,6 +63,33 @@ ${params}
         }
       ]
     },
+    {
+      name: "stream_acc_r_id",
+      desc: "Identifier of the active accelerator connected on the read port.\
+        For now HW read only, then decide whether to unify with accelerator reg",
+      swaccess: "rw",
+      hwaccess: "hro",
+      fields: [
+        {
+          bits: "2:0",
+          name: "stream_acc_r_id",
+          desc: "Identifier of the active accelerator connected on the read port"
+        }
+      ]
+    },
+    {
+      name: "stream_acc_w_id",
+      desc: "Identifier of the active accelerator connected on the write port",
+      swaccess: "rw",
+      hwaccess: "hro",
+      fields: [
+        {
+          bits: "2:0",
+          name: "stream_acc_w_id",
+          desc: "Identifier of the active accelerator connected on the write port"
+        }
+      ]
+    },
     { multireg:
       { name: "status",
         desc: "DMA Status",

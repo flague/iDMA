@@ -139,6 +139,11 @@ module idma_${identifier} #(
       arb_dma_req[i]${sep}opt.beo.dst_max_llen   = dma_reg2hw[i].conf.dst_max_llen.q;
       arb_dma_req[i]${sep}opt.beo.src_reduce_len = dma_reg2hw[i].conf.src_reduce_len.q;
       arb_dma_req[i]${sep}opt.beo.dst_reduce_len = dma_reg2hw[i].conf.dst_reduce_len.q;
+      
+      // Accelerator ID of the current transfer (among options)
+      arb_dma_req[i]${sep}opt.r_stream_acc_id = dma_reg2hw[i].stream_acc_r_id.q;
+      arb_dma_req[i]${sep}opt.w_stream_acc_id = dma_reg2hw[i].stream_acc_w_id.q;
+
 
 % if num_dim != 1:
       // ND connections
