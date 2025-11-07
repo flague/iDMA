@@ -399,10 +399,6 @@ _rsp_t ${protocol}_write_rsp_i,
     logic ar_req_valid_acc_ru;
     logic ar_req_ready_acc_ru;
 
-    // Acc to dataflow element
-    byte_t [NumRStreamAcc:0][StrbWidth-1:0]    r_buffer_out_acc;
-    strb_t [NumRStreamAcc:0]                   r_buffer_out_valid_acc;
-    strb_t [NumRStreamAcc:0]                   r_buffer_out_ready_acc;
 
     // output buffer
     byte_t [StrbWidth-1:0]    r_buffer_out_acc_df;
@@ -442,12 +438,18 @@ _rsp_t ${protocol}_write_rsp_i,
     // input buffer
     strb_t [NumRStreamAcc:0]       buffer_in_valid_acc;
     strb_t [NumRStreamAcc:0]       buffer_in_ready_acc;
+    
+    
+    // Acc to dataflow element
+    byte_t [NumRStreamAcc:0][StrbWidth-1:0]    r_buffer_out_acc;
+    strb_t [NumRStreamAcc:0]                   r_buffer_out_valid_acc;
+    strb_t [NumRStreamAcc:0]                   r_buffer_out_ready_acc;
 
 
     // Demux input signals
     // -------------------    
     always_comb begin : r_acc_demux
-        for (int unsigned i = 0; i < NumRStreamAcc; i++) begin : rendered_stream_acc_ports
+        for (int unsigned i = 0; i <= NumRStreamAcc; i++) begin : rendered_stream_acc_ports
             r_dp_in_req_valid_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_valid_i : 1'b0;
             ar_in_valid_acc[i]       = (r_dp_req_i.stream_acc_id == (i)) ? ar_valid_i  : 1'b0;
             r_dp_out_rsp_ready_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_ready_i : 1'b0;
@@ -563,18 +565,18 @@ _rsp_t ${protocol}_write_rsp_i,
     
     end else begin : gen_no_r_stream_acc
             // connect to 0 all acc_wu signals
-        assign w_dp_req_acc_wu       = '0;
-        assign w_dp_req_valid_acc_wu = 1'b0;
-        assign w_dp_req_ready_acc_wu = 1'b0;
-        assign aw_req_acc_wu         = '0;
-        assign aw_req_valid_acc_wu   = 1'b0;
-        assign aw_req_ready_acc_wu   = 1'b0;
-        assign buffer_out_acc_wu     = '0;
-        assign buffer_out_valid_acc_wu = '0;
-        assign buffer_out_ready_acc_wu = '0;
-        assign w_dp_rsp_acc_wu       = '0;
-        assign w_dp_rsp_valid_acc_wu = 1'b0;
-        assign w_dp_rsp_ready_acc_wu = 1'b0;
+        assign r_dp_req_acc_ru           = r_dp_req_i;
+        assign r_dp_req_valid_acc_ru     = r_dp_valid_i;
+        assign r_dp_ready_o              = r_dp_req_ready_acc_ru;
+        assign ar_req_acc_ru             = ar_req_i;
+        assign ar_req_valid_acc_ru       = ar_valid_i;
+        assign ar_ready_o                = ar_req_ready_acc_ru;
+        assign r_buffer_out_acc_df       = buffer_in;
+        assign r_buffer_out_valid_acc_df = buffer_in_valid;
+        assign buffer_in_ready           = r_buffer_out_ready_acc_df;
+        assign r_dp_rsp_o                = r_dp_rsp_acc_ru;
+        assign r_dp_valid_o              = r_dp_rsp_valid_acc_ru;
+        assign r_dp_rsp_ready_acc_ru     = r_dp_ready_i;
     end
 
 
@@ -775,7 +777,7 @@ ${rendered_read_ports[read_port]}
         // -------------------
         // stream_acc_id = 0 means no streaming accelerator is active (normal DMA transfer)
         always_comb begin :  w_acc_demux
-            for (int unsigned i = 0; i < NumWStreamAcc; i++) begin : gen_streaming_accelerator_ports
+            for (int unsigned i = 0; i <= NumWStreamAcc; i++) begin : gen_streaming_accelerator_ports
                 // input interface
                 w_dp_in_req_valid_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_valid_i : 1'b0;
                 aw_valid_acc[i]      = (w_dp_req_i.stream_acc_id == (i)) ? aw_valid_i  : 1'b0;
