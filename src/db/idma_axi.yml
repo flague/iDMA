@@ -55,6 +55,17 @@ legalizer_read_data_path: |
         decouple_aw:  opt_tf_q.decouple_aw,
         is_single:    r_req_o.ar_req.axi.ar_chan.len == '0
     };
+legalizer_read_data_path_acc: |
+    r_req_o.r_dp_req = '{
+        src_protocol: opt_tf_q.src_protocol,
+        offset:       r_addr_offset,
+        tailer:       OffsetWidth'(r_num_bytes + r_addr_offset),
+        shift:        opt_tf_q.read_shift,
+        decouple_aw:  opt_tf_q.decouple_aw,
+        num_beats:    r_req_o.ar_req.axi.ar_chan.len,
+        is_single:    r_req_o.ar_req.axi.ar_chan.len == '0,
+        stream_acc_id: '0
+    };
 legalizer_write_meta_channel: |
     w_req_o.aw_req.axi.aw_chan = '{
         id: opt_tf_q.axi_id,
@@ -79,6 +90,16 @@ legalizer_write_data_path: |
         num_beats: w_req_o.aw_req.axi.aw_chan.len,
         is_single: w_req_o.aw_req.axi.aw_chan.len == '0
     };
+legalizer_write_data_path_acc: |
+    w_req_o.w_dp_req = '{
+        dst_protocol: opt_tf_q.dst_protocol,
+        offset: w_addr_offset,
+        tailer: OffsetWidth'(w_num_bytes + w_addr_offset),
+        shift: opt_tf_q.write_shift,
+        num_beats: w_req_o.aw_req.axi.aw_chan.len,
+        is_single: w_req_o.aw_req.axi.aw_chan.len == '0,
+        stream_acc_id: '0
+    };
 read_template: |
     idma_axi_read #(
         .StrbWidth  ( StrbWidth           ),
@@ -101,6 +122,36 @@ read_template: |
         .ar_req_i          ( ${read_meta_request} ),
         .ar_valid_i        ( ${read_meta_valid} ),
         .ar_ready_o        ( ${read_meta_ready} ),
+        .read_req_o        ( ${read_request} ),
+        .read_rsp_i        ( ${read_response} ),
+        .r_chan_valid_o    ( ${r_chan_valid} ),
+        .r_chan_ready_o    ( ${r_chan_ready} ),
+        .buffer_in_o       ( ${buffer_in} ),
+        .buffer_in_valid_o ( ${buffer_in_valid} ),
+        .buffer_in_ready_i ( buffer_in_ready )
+    );
+read_stream_acc_template: |
+    idma_axi_read #(
+        .StrbWidth  ( StrbWidth           ),
+        .byte_t     ( byte_t              ),
+        .strb_t     ( strb_t              ),
+        .r_dp_req_t ( r_dp_req_t          ),
+        .r_dp_rsp_t ( r_dp_rsp_t          ),
+        .ar_chan_t  ( read_meta_channel_t ),
+        .read_req_t ( ${req_t}           ),
+        .read_rsp_t ( ${rsp_t}           )
+    ) i_idma_axi_read (
+        .clk_i             ( clk_i      ),
+        .rst_ni            ( rst_ni     ),
+        .r_dp_req_i        ( r_dp_req_acc_ru ),
+        .r_dp_valid_i      ( r_dp_req_valid_acc_ru),
+        .r_dp_ready_o      ( r_dp_req_ready_acc_ru ),
+        .r_dp_rsp_o        ( r_dp_rsp_acc_ru),
+        .r_dp_valid_o      ( r_dp_rsp_valid_acc_ru ),
+        .r_dp_ready_i      ( r_dp_rsp_ready_acc_ru ),
+        .ar_req_i          ( ar_req_acc_ru),
+        .ar_valid_i        ( ar_req_valid_acc_ru ),
+        .ar_ready_o        ( ar_req_ready_acc_ru ),
         .read_req_o        ( ${read_request} ),
         .read_rsp_i        ( ${read_response} ),
         .r_chan_valid_o    ( ${r_chan_valid} ),

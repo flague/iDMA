@@ -656,12 +656,16 @@ ${database[protocol]['legalizer_read_meta_channel']}
 % endif
 % for protocol in used_read_protocols:
 % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and one_read_port and 'legalizer_read_data_path_acc' in database[used_read_protocols[0]]:
+    always_comb begin : gen_read_data_path
 ${database[used_read_protocols[0]]['legalizer_read_data_path_acc']}
+    end
 %else:
     % if 'legalizer_read_data_path' in database[used_read_protocols[0]]:
-${database[used_read_protocols[0]]['legalizer_read_data_path']}
-    % else:
+    always_comb begin : gen_read_data_path
 
+${database[used_read_protocols[0]]['legalizer_read_data_path']}
+    end
+    % else:
     // assign the signals needed to set-up the read data path
     // TODO: this is wrong, the is_single is not correct in this way,
     // must be equal to ar_req_o.axi.ar_chan.len == '0, so probably needs a tpl version
@@ -681,10 +685,9 @@ ${database[used_read_protocols[0]]['legalizer_read_data_path']}
     always_comb begin
 ${database[used_write_protocols[0]]['legalizer_write_meta_channel']}
 % for protocol in used_write_protocols:
-% if streaming_accelerator[protocol] == 'true' and 'axi' in used_write_protocols and one_write_port:
+% if streaming_accelerator[protocol] == 'true' and 'axi' in used_write_protocols and 'axi' in used_read_protocols:
 % if 'legalizer_write_data_path_acc' in database[used_write_protocols[0]]:
 ${database[used_write_protocols[0]]['legalizer_write_data_path_acc']}
-% endif
 %else:
     % if 'legalizer_write_data_path' in database[used_write_protocols[0]]:
 ${database[used_write_protocols[0]]['legalizer_write_data_path']}
@@ -698,6 +701,7 @@ ${database[used_write_protocols[0]]['legalizer_write_data_path']}
             is_single:    1'b1
         };
     % endif
+%endif
 %endif
     end
 % endfor

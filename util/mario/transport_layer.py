@@ -98,6 +98,97 @@ def render_read_mgr_inst(prot_id: str, prot_ids: dict, db: dict) -> dict:
 
     return res
 
+def render_stream_acc_read_mgr_inst(prot_id: str, prot_ids: dict, db: dict) -> dict:
+    """Renders the port instantiations of the read managers"""
+
+    res = {}
+
+    # single read port
+    srp = len(prot_ids[prot_id]['ar']) == 1
+
+    # Render read ports
+    for rp in prot_ids[prot_id]['ar']:
+
+        tpl_name = 'read_stream_acc_template'
+        # Check first if tpl exists else use the normal one
+        if tpl_name not in db[rp]:
+            tpl_name = 'read_template'
+        # template cleanup
+        db[rp][tpl_name] = '    ' + db[rp][tpl_name].replace('\n', '\n    ')
+        db[rp][tpl_name] = db[rp][tpl_name][:-5]
+
+        if db[rp]['read_slave'] == 'true':
+            read_req_str = f'{rp}_read_req_t'
+            read_rsp_str = f'{rp}_read_rsp_t'
+        else:
+            read_req_str = f'{rp}_req_t'
+            read_rsp_str = f'{rp}_rsp_t'
+
+        if db[rp]['passive_req'] == 'true':
+            read_port_dir_req_str = 'i'
+            read_port_dir_rsp_str = 'o'
+        else:
+            read_port_dir_req_str = 'o'
+            read_port_dir_rsp_str = 'i'
+
+        if srp:
+            read_dp_valid_in = 'r_dp_valid_i'
+            read_dp_ready_out = 'r_dp_ready_o'
+            read_dp_response = 'r_dp_rsp_o'
+            read_dp_valid_out = 'r_dp_valid_o'
+            read_dp_ready_in = 'r_dp_ready_i'
+            read_meta_request = 'ar_req_i'
+            read_meta_valid = 'ar_valid_i'
+            read_meta_ready = 'ar_ready_o'
+            r_chan_valid = 'r_chan_valid_o'
+            r_chan_ready = 'r_chan_ready_o'
+            buffer_in = 'buffer_in'
+            buffer_in_valid = 'buffer_in_valid'
+        else:
+            read_dp_valid_in = f'''\
+(r_dp_req_i.src_protocol == idma_pkg::{db[rp]["protocol_enum"]}) & r_dp_valid_i\
+'''
+            read_dp_ready_out = f'{rp}_r_dp_ready'
+            read_dp_response = f'{rp}_r_dp_rsp'
+            read_dp_valid_out = f'{rp}_r_dp_valid'
+            read_dp_ready_in = f'''\
+(r_dp_req_i.src_protocol == idma_pkg::{db[rp]["protocol_enum"]}) & r_dp_ready_i\
+'''
+            read_meta_request = 'ar_req_i.ar_req'
+            read_meta_valid = f'''\
+(ar_req_i.src_protocol == idma_pkg::{db[rp]["protocol_enum"]}) & ar_valid_i\
+'''
+            read_meta_ready = f'{rp}_ar_ready'
+            r_chan_valid = f'{rp}_r_chan_valid'
+            r_chan_ready = f'{rp}_r_chan_ready'
+            buffer_in = f'{rp}_buffer_in'
+            buffer_in_valid = f'{rp}_buffer_in_valid'
+
+        read_port_context = {
+            'database': db,
+            'req_t': read_req_str,
+            'rsp_t': read_rsp_str,
+            'r_dp_valid_i': read_dp_valid_in,
+            'r_dp_ready_o': read_dp_ready_out,
+            'r_dp_rsp_o': read_dp_response,
+            'r_dp_valid_o': read_dp_valid_out,
+            'r_dp_ready_i': read_dp_ready_in,
+            'read_meta_request': read_meta_request,
+            'read_meta_valid': read_meta_valid,
+            'read_meta_ready': read_meta_ready,
+            'read_request': f'{rp}_read_req_{read_port_dir_req_str}',
+            'read_response': f'{rp}_read_rsp_{read_port_dir_rsp_str}',
+            'r_chan_valid': r_chan_valid,
+            'r_chan_ready': r_chan_ready,
+            'buffer_in': buffer_in,
+            'buffer_in_valid': buffer_in_valid
+        }
+
+        # render
+        res[rp] = Template(db[rp][tpl_name]).render(**read_port_context)
+
+    return res
+
 
 def render_write_mgr_inst(prot_id: str, prot_ids: dict, db: dict) -> dict:
     """Renders the port instantiations of the write managers"""
@@ -277,7 +368,8 @@ def render_transport_layer(prot_ids: dict, db: dict, tpl_file: str) -> str:
             'one_write_port': len(prot_ids[prot_id]['aw']) == 1,
             'rendered_read_ports': render_read_mgr_inst(prot_id, prot_ids, db),
             'rendered_write_ports': render_write_mgr_inst(prot_id, prot_ids, db),
-            'rendered_stream_acc_write_ports': render_stream_acc_write_mgr_inst(prot_id, prot_ids, db)
+            'rendered_stream_acc_write_ports': render_stream_acc_write_mgr_inst(prot_id, prot_ids, db),
+            'rendered_stream_acc_read_ports': render_stream_acc_read_mgr_inst(prot_id, prot_ids, db)
         }
 
         # render

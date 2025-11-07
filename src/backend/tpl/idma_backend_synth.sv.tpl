@@ -40,12 +40,16 @@ module idma_backend_synth_${name_uniqueifier} #(
 % endif
 % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
     parameter bit StreamingAccelerator    = 1'b1,
-    parameter int unsigned NumStreamAcc   = 32'd1,
+    parameter int unsigned NumRStreamAcc   = 32'd1,
+    parameter int unsigned NumWStreamAcc   = 32'd1,
     /// Widening accelerator enabled
-    parameter bit WideningAccelerator     = 1'b1,
+    parameter bit WideningUnit     = 1'b1,
+    parameter bit NarrowingUnit    = 1'b1,
     parameter int unsigned WideningDataWidth    = 32'd32,
+    parameter int unsigned NarrowingDataWidth   = 32'd32,
     /// Widening max 1D transfer width (log2(VPU line size))
     parameter int unsigned WideningMax1DTxWidth = 32'd10,
+    parameter int unsigned NarrowingMax1DTxWidth = 32'd10,
 % endif
 % endfor
     /// Number of transaction that can be in-flight concurrently
@@ -158,8 +162,8 @@ module idma_backend_synth_${name_uniqueifier} #(
     % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
     /// Widening configuration valid
     // Connect on top if widening implemented, else tie to 0
-    input  logic widening_conf_valid_i,
-    input  logic widening_sign_ext_i,
+    input  stream_acc_t widening_req_i,
+    input  stream_acc_t narrowing_req_i,
     % endif
 % endfor
 % for protocol in used_read_protocols:
@@ -334,10 +338,14 @@ ${p}_${database[p]['write_meta_channel']}_width\
 % endif
 % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
     .StreamingAccelerator    (StreamingAccelerator),
-    .NumStreamAcc           (NumStreamAcc),
-    .WideningAccelerator     (WideningAccelerator),
+    .NumRStreamAcc           (NumRStreamAcc),
+    .NumWStreamAcc           (NumWStreamAcc),
+    .WideningUnit           (WideningUnit),
+    .NarrowingUnit          (NarrowingUnit),
     .WideningDataWidth       (WideningDataWidth),
+    .NarrowingDataWidth      (NarrowingDataWidth),
     .WideningMax1DTxWidth    (WideningMax1DTxWidth),
+    .NarrowingMax1DTxWidth   (NarrowingMax1DTxWidth),
 % endif
 % endfor
 
@@ -397,8 +405,8 @@ ${p}_${database[p]['write_meta_channel']}_width\
 %  endif
 % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
 ,
-        .widening_conf_valid_i (widening_conf_valid_i),
-        .widening_sign_ext_i   (widening_sign_ext_i)\
+        .widening_req_i(widening_req_i),
+        .narrowing_req_i(narrowing_req_i)\
 %  endif
 % endfor
 % for protocol in used_read_protocols:

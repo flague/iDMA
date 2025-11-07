@@ -47,12 +47,17 @@ module idma_backend_${name_uniqueifier} #(
 % endif
 % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
     parameter bit StreamingAccelerator    = 1'b1,
-    parameter int unsigned NumStreamAcc   = 32'd1,
+    parameter int unsigned NumRStreamAcc   = 32'd1,
+    parameter int unsigned NumWStreamAcc   = 32'd1,
+    parameter type stream_acc_t        = logic,
     /// Widening accelerator enabled
-    parameter bit WideningAccelerator     = 1'b1,
+    parameter bit WideningUnit       = 1'b1,
+    parameter bit NarrowingUnit      = 1'b1,
     parameter int unsigned WideningDataWidth    = 32'd32,
+    parameter int unsigned NarrowingDataWidth    = 32'd32,
     /// Widening max 1D transfer width (log2(VPU line size))
     parameter int unsigned WideningMax1DTxWidth = 32'd10,
+    parameter int unsigned NarrowingMax1DTxWidth = 32'd10,
 % endif
 % endfor
     /// Should both data shifts be done before the dataflow element?
@@ -149,8 +154,8 @@ module idma_backend_${name_uniqueifier} #(
     % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
     /// Widening configuration valid
     // Connect on top if widening implemented, else tie to 0
-    input  logic widening_conf_valid_i,
-    input  logic widening_sign_ext_i,
+    input  stream_acc_t widening_req_i,
+    input  stream_acc_t narrowing_req_i,
     % endif
 % endfor
 % for protocol in used_read_protocols:
@@ -231,6 +236,12 @@ _rsp_t ${protocol}_write_rsp_i,
     /// - `shift`: The amount the data needs to be shifted
     /// - `decouple_aw`: If the transfer has the AW decoupled from the R
     /// - `is_single`: Is this transfer just one beat long? `(len == 0)`
+% for protocol in used_protocols:
+    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
+    localparam StreamRAccIdWidth = NumRStreamAcc > 1 ? $clog2(NumRStreamAcc) : 1;
+    %endif
+% endfor
+    
     typedef struct packed {
         idma_pkg::protocol_e src_protocol;
         offset_t             offset;
@@ -238,6 +249,12 @@ _rsp_t ${protocol}_write_rsp_i,
         offset_t             shift;
         logic                decouple_aw;
         logic                is_single;
+        % for protocol in used_protocols:
+    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
+        logic [StreamRAccIdWidth-1:0] stream_acc_id;
+        axi_pkg::len_t       num_beats;
+    %  endif
+% endfor
     } r_dp_req_t;
 
     /// The datapath read response type provides feedback from the read part of the datapath:
@@ -260,7 +277,7 @@ _rsp_t ${protocol}_write_rsp_i,
     /// - `is_single`: Is this transfer just one beat long? `(len == 0)`
 % for protocol in used_protocols:
     % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
-    localparam StreamAccIdWidth = NumStreamAcc > 1 ? $clog2(NumStreamAcc) : 1;
+    localparam StreamWAccIdWidth = NumWStreamAcc > 1 ? $clog2(NumWStreamAcc) : 1;
     %endif
 % endfor
     typedef struct packed {
@@ -269,10 +286,10 @@ _rsp_t ${protocol}_write_rsp_i,
         offset_t             tailer;
         offset_t             shift;
         axi_pkg::len_t       num_beats;
+        logic                is_single;
 % for protocol in used_protocols:
     % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
-        logic [StreamAccIdWidth-1:0] stream_acc_id;
-        logic                is_single;
+        logic [StreamWAccIdWidth-1:0] stream_acc_id;
     %  endif
 % endfor
     } w_dp_req_t;
@@ -780,10 +797,15 @@ _rsp_t ${protocol}_write_rsp_i,
 % endif
 % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
         .StreamingAccelerator        ( StreamingAccelerator        ),
-        .NumStreamAcc                 ( NumStreamAcc                 ),
-        .WideningAccelerator          ( WideningAccelerator          ),
+        .stream_acc_t                 ( stream_acc_t                 ),
+        .NumRStreamAcc                 ( NumRStreamAcc                 ),
+        .NumWStreamAcc                 ( NumWStreamAcc                 ),
+        .WideningUnit                  ( WideningUnit                  ),
+        .NarrowingUnit                  ( NarrowingUnit                  ),
         .WideningDataWidth             ( WideningDataWidth             ),
+        .NarrowingDataWidth            ( NarrowingDataWidth            ),
         .WideningMax1DTxWidth         ( WideningMax1DTxWidth         ),
+        .NarrowingMax1DTxWidth        ( NarrowingMax1DTxWidth        ),
 %endif
     % if database[protocol]['read_slave'] == 'true':
         % if (protocol in used_read_protocols) and (protocol in used_write_protocols):
@@ -815,8 +837,8 @@ _rsp_t ${protocol}_write_rsp_i,
 %  endif
 % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
 ,
-        .widening_conf_valid_i (widening_conf_valid_i),
-        .widening_sign_ext_i   (widening_sign_ext_i)\
+        .widening_req_i (widening_req_i),
+        .narrowing_req_i (narrowing_req_i)\
 %  endif
 % endfor
 % for protocol in used_read_protocols:
