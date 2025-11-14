@@ -8,6 +8,22 @@
 
 `include "idma/guard.svh"
 `include "common_cells/registers.svh"
+<%
+ streaming_accel = False
+ llc_coh = False
+%>
+% for protocol in used_protocols:
+%   if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+<%
+       streaming_accel = True
+%>
+%   endif
+%   if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+<%
+       llc_coh = True
+%>
+% endif
+% endfor
 
 /// Implementing the transport layer in the iDMA backend.
 module idma_transport_layer_${name_uniqueifier} #(
@@ -188,18 +204,16 @@ _rsp_t ${protocol}_write_rsp_i,
     output logic aw_ready_o,
 
     
-% for protocol in used_protocols:
-%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+%  if llc_coh:
     /// Write valid sent to downstream goes back
     /// This is used to throttle the read requests in case of LLC to LLC transfers
     output logic wvalid_o,
 %  endif
-% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+% if streaming_accel:
     /// Widening configuration valid
     input  stream_acc_t widening_req_i,
     input  stream_acc_t narrowing_req_i,
 %  endif
-% endfor
     /// Datapath poison signal
     input  logic dp_poison_i,
 
@@ -381,8 +395,8 @@ _rsp_t ${protocol}_write_rsp_i,
 % endif
 
 
-% for protocol in used_protocols:
-%  if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+
+%  if streaming_accel:
     
     
     // Signals
@@ -581,7 +595,7 @@ _rsp_t ${protocol}_write_rsp_i,
 
 
 %endif
-%endfor
+
 
 
 
@@ -590,15 +604,15 @@ _rsp_t ${protocol}_write_rsp_i,
     //--------------------------------------
 
 % for read_port in used_read_protocols:
-% for protocol in used_protocols:
-%  if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+% if one_read_port and one_write_port:
+%  if streaming_accel:
 ${rendered_stream_acc_read_ports[read_port]}
 % else:
 ${rendered_read_ports[read_port]}
 % endif
-
-% endfor
-
+% else:
+${rendered_read_ports[read_port]}
+% endif
 % endfor
 % if not one_read_port:
     //--------------------------------------
@@ -659,11 +673,9 @@ ${rendered_read_ports[read_port]}
     //--------------------------------------
     // Read Barrel shifter
     //--------------------------------------
-% for protocol in used_protocols:
-%  if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+% if accel_condition:
     assign buffer_in_tmp = {r_buffer_out_acc_df, r_buffer_out_acc_df} >> (r_dp_req_i.shift * 8);
     assign buffer_in_shifted = buffer_in_tmp[$bits(buffer_in_shifted)/8-1:0];
-    
 % else:
     assign buffer_in_tmp = {buffer_in, buffer_in} >> (r_dp_req_i.shift * 8);
     assign buffer_in_shifted = buffer_in_tmp[$bits(buffer_in_shifted)/8-1:0];
@@ -683,7 +695,7 @@ ${rendered_read_ports[read_port]}
         .rst_ni      ( rst_ni                   ),
         .testmode_i  ( testmode_i               ),
         .data_i      ( buffer_in_shifted        ),
-        %  if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+        %  if accel_condition:
         .valid_i     ( r_buffer_out_valid_acc_df  ),
         .ready_o     ( r_buffer_out_ready_acc_df  ),
         %  else:
@@ -694,8 +706,6 @@ ${rendered_read_ports[read_port]}
         .valid_o     ( buffer_out_valid         ),
         .ready_i     ( buffer_out_ready_shifted )
     );
-
-%endfor
     //--------------------------------------
     // Write Barrel shifter
     //--------------------------------------
@@ -705,8 +715,7 @@ ${rendered_read_ports[read_port]}
     assign buffer_out_valid_shifted = strb_t'({buffer_out_valid, buffer_out_valid} >>   w_dp_req_i.shift);
     assign buffer_out_ready_shifted = strb_t'({buffer_out_ready, buffer_out_ready} >> - w_dp_req_i.shift);
 
-% for protocol in used_protocols:
-%  if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+%  if streaming_accel:
     w_dp_req_t w_dp_req_acc_wu;
     logic w_dp_req_valid_acc_wu;
     logic w_dp_req_ready_acc_wu;
@@ -758,7 +767,7 @@ ${rendered_read_ports[read_port]}
 
 
         // Wvalid signal
-    %  if llc_coherence[protocol] == 'true':
+    %  if llc_coh:
         /// Write valid sent to downstream goes back
         /// This is used to throttle the read requests in case of LLC to LLC transfers
         logic [NumWStreamAcc:0] wvalid_acc;
@@ -827,7 +836,7 @@ ${rendered_read_ports[read_port]}
                 .BusDataWidth     ( DataWidth       ),
                 .WidenedDataWidth ( WideningDataWidth  ),
                 .Max1DTxWidth     ( WideningMax1DTxWidth ),
-                %  if llc_coherence[protocol] == 'true':    
+                %  if llc_coh:    
                 .LLC_Legalizer    (LLC_Legalizer),
                 % else:
                 .LLC_Legalizer    (1'b0),
@@ -867,7 +876,7 @@ ${rendered_read_ports[read_port]}
                 .aw_ready_i        (aw_req_ready_acc[stream_acc_pkg::WIDENING_ACC_ID]),
                 .wvalid_i          (axi_write_req_o.w_valid),
                 .wready_i          (axi_write_rsp_i.w_ready),
-                %  if llc_coherence[protocol] == 'true': 
+                %  if llc_coh: 
                 .wvalid_o          (wvalid_acc[stream_acc_pkg::WIDENING_ACC_ID]),
                 % else:
                 .wvalid_o          (),
@@ -933,7 +942,6 @@ ${rendered_read_ports[read_port]}
 
 
 %endif
-% endfor
 
 
 % if not one_write_port:
@@ -987,8 +995,7 @@ ${rendered_read_ports[read_port]}
     //--------------------------------------
 
 % for write_port in used_write_protocols:
-% for protocol in used_protocols:
-%  if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+%  if streaming_accel:
     if (StreamingAccelerator) begin: gen_axi_write_acc_if
     
     ${rendered_stream_acc_write_ports[write_port]}
@@ -999,7 +1006,6 @@ ${rendered_read_ports[read_port]}
 % else :
 ${rendered_write_ports[write_port]}
 % endif
-% endfor
 % endfor
 
 %if not one_write_port:

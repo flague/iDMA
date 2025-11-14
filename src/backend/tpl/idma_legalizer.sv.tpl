@@ -10,6 +10,25 @@
 `include "common_cells/assertions.svh"
 `include "idma/guard.svh"
 
+<%
+ streaming_accel = False
+ llc_coh = False
+%>
+% for protocol in used_protocols:
+%   if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port:
+<%
+       streaming_accel = True
+%>
+%   endif
+%   if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+<%
+       llc_coh = True
+%>
+
+% endif
+% endfor
+
+
 /// Legalizes a generic 1D transfer according to the rules given by the
 /// used protocol.
 module idma_legalizer_${name_uniqueifier} #(
@@ -21,8 +40,8 @@ module idma_legalizer_${name_uniqueifier} #(
     parameter int unsigned DataWidth       = 32'd16,
     /// Address width
     parameter int unsigned AddrWidth       = 32'd24,
-% for protocol in used_protocols:
-%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+
+%  if llc_coh:
     /// Enable LLC legalizer through this flag
     parameter bit          LLC_Legalizer   = 1'b1,
     /// RFIFO Depth: how many reads (rvalid) can be sent
@@ -39,7 +58,6 @@ module idma_legalizer_${name_uniqueifier} #(
     /// Transfer length type
     parameter type tf_len_t = logic,
 % endif
-% endfor
     /// 1D iDMA request type:
     /// - `length`: the length of the transfer in bytes
     /// - `*_addr`: the source / target byte addresses of the transfer
@@ -80,13 +98,13 @@ module idma_legalizer_${name_uniqueifier} #(
     /// Write request ready
     input  logic w_ready_i,
 
-% for protocol in used_protocols:
-%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+
+%  if llc_coh:
     /// Write valid received from downstream
     /// This is used to throttle the read requests in case of LLC to LLC transfers
     input  logic wvalid_i,
 % endif
-% endfor
+
     /// Invalidate the current burst transfer, stops emission of requests
     input  logic flush_i,
     /// Kill the active 1D transfer; reload a new transfer
@@ -282,8 +300,8 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
 % endif
     
 % if no_read_bursting or has_page_read_bursting:
-% for protocol in used_protocols:
-%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+
+%  if llc_coh:
 
     //--------------------------
     // Read - LLC boundary check
@@ -368,7 +386,7 @@ r_num_bytes_to_pb = r_page_num_bytes_to_pb;
     end
 
 %endif
-%endfor
+
 % endif
 
 
@@ -463,27 +481,27 @@ w_num_bytes_to_pb = w_page_num_bytes_to_pb;
     assign c_num_bytes_to_pb = (r_num_bytes_to_pb > w_num_bytes_to_pb) ?
                                 w_num_bytes_to_pb : r_num_bytes_to_pb;
 
-% for protocol in used_protocols:
-%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+
+%  if llc_coh:
     assign c_num_bytes = (llc_to_llc_transfer_q && (num_bytes_to_llc < c_num_bytes_to_pb)) ?
                      num_bytes_to_llc : c_num_bytes_to_pb;
 % endif
-% endfor
+
 
     //--------------------------------------
     // Synchronized R/W process
     //--------------------------------------
     always_comb begin : proc_num_bytes_possible
         // Default: Coupled
-% for protocol in used_protocols:
-%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+
+%  if llc_coh:
         r_num_bytes_possible = c_num_bytes;
         w_num_bytes_possible = c_num_bytes;
 % else:
         r_num_bytes_possible = c_num_bytes_to_pb;
         w_num_bytes_possible = c_num_bytes_to_pb;
 % endif
-% endfor
+
         if (opt_tf_q.decouple_rw\
     % if len(used_non_bursting_or_force_decouple_read_protocols) != 0:
 
@@ -656,8 +674,7 @@ ${database[protocol]['legalizer_read_meta_channel']}
         endcase
     end
 % endif
-% for protocol in used_read_protocols:
-% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and one_read_port and 'legalizer_read_data_path_acc' in database[used_read_protocols[0]]:
+% if streaming_accel:
     always_comb begin : gen_read_data_path
 ${database[used_read_protocols[0]]['legalizer_read_data_path_acc']}
     end
@@ -681,13 +698,12 @@ ${database[used_read_protocols[0]]['legalizer_read_data_path']}
     };
     % endif
 %endif
-% endfor
+
     // Write meta channel and data path
 % if one_write_port:
     always_comb begin
 ${database[used_write_protocols[0]]['legalizer_write_meta_channel']}
-% for protocol in used_write_protocols:
-% if streaming_accelerator[protocol] == 'true' and 'axi' in used_write_protocols and 'axi' in used_read_protocols:
+% if streaming_accel:
 % if 'legalizer_write_data_path_acc' in database[used_write_protocols[0]]:
 ${database[used_write_protocols[0]]['legalizer_write_data_path_acc']}
 %else:
@@ -706,7 +722,6 @@ ${database[used_write_protocols[0]]['legalizer_write_data_path']}
 %endif
 %endif
     end
-% endfor
 % else:
     always_comb begin : gen_write_meta_channel
         w_req_o.aw_req = '0;
@@ -796,8 +811,8 @@ ${database[protocol]['legalizer_write_data_path']}
             r_valid_o = r_tf_q.valid & r_ready_i & !flush_i;
             w_valid_o = w_tf_q.valid & w_ready_i & !flush_i;
         end else begin
-% for protocol in used_protocols:
-%  if llc_coherence[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols:
+
+%  if llc_coh:
             r_tf_ena  = (r_ready_i & w_ready_i & !flush_i & llc_split_valid) | kill_i;
             w_tf_ena  = (r_ready_i & w_ready_i & !flush_i & llc_split_valid) | kill_i;
 
@@ -809,7 +824,7 @@ ${database[protocol]['legalizer_write_data_path']}
             r_valid_o = r_tf_q.valid & w_ready_i & r_ready_i & !flush_i;
             w_valid_o = w_tf_q.valid & r_ready_i & w_ready_i & !flush_i;
 % endif
-% endfor
+
         end
     end
 

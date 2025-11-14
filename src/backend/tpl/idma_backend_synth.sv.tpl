@@ -50,6 +50,7 @@ module idma_backend_synth_${name_uniqueifier} #(
     /// Widening max 1D transfer width (log2(VPU line size))
     parameter int unsigned WideningMax1DTxWidth = 32'd10,
     parameter int unsigned NarrowingMax1DTxWidth = 32'd10,
+    parameter type stream_acc_t = logic,
 % endif
 % endfor
     /// Number of transaction that can be in-flight concurrently
