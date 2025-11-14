@@ -673,7 +673,7 @@ ${rendered_read_ports[read_port]}
     //--------------------------------------
     // Read Barrel shifter
     //--------------------------------------
-% if accel_condition:
+% if streaming_accel:
     assign buffer_in_tmp = {r_buffer_out_acc_df, r_buffer_out_acc_df} >> (r_dp_req_i.shift * 8);
     assign buffer_in_shifted = buffer_in_tmp[$bits(buffer_in_shifted)/8-1:0];
 % else:
@@ -695,7 +695,7 @@ ${rendered_read_ports[read_port]}
         .rst_ni      ( rst_ni                   ),
         .testmode_i  ( testmode_i               ),
         .data_i      ( buffer_in_shifted        ),
-        %  if accel_condition:
+        %  if streaming_accel:
         .valid_i     ( r_buffer_out_valid_acc_df  ),
         .ready_o     ( r_buffer_out_ready_acc_df  ),
         %  else:
