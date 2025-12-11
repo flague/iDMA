@@ -831,7 +831,7 @@ ${rendered_read_ports[read_port]}
         // Widening accelerator
         //---------------------
         if (WideningUnit) begin: gen_widening_accelerator
-            widening_unit #(
+            widening_wrap #(
                 .BufferDepth      ( BufferDepth     ),
                 .BusDataWidth     ( DataWidth       ),
                 .WidenedDataWidth ( WideningDataWidth  ),
@@ -850,7 +850,7 @@ ${rendered_read_ports[read_port]}
                 .write_req_t      ( axi_req_t ),
                 .write_rsp_t      ( axi_rsp_t ),
                 .stream_acc_t     ( stream_acc_t )
-            ) i_widening_write (
+            ) i_widening_wrap (
                 .clk_i            (clk_i),
                 .rst_ni           (rst_ni),
                 .testmode_i       (testmode_i),
