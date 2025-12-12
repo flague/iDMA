@@ -450,8 +450,8 @@ _rsp_t ${protocol}_write_rsp_i,
     logic [NumRStreamAcc:0]         r_dp_in_rsp_ready_acc;
 
     // input buffer
-    strb_t [NumRStreamAcc:0]       buffer_in_valid_acc;
-    strb_t [NumRStreamAcc:0]       buffer_in_ready_acc;
+    strb_t [NumRStreamAcc:0]       r_buffer_in_valid_acc;
+    strb_t [NumRStreamAcc:0]       r_buffer_in_ready_acc;
     
     
     // Acc to dataflow element
@@ -473,7 +473,7 @@ _rsp_t ${protocol}_write_rsp_i,
             // r dp rsp
             r_dp_in_rsp_valid_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_rsp_valid_acc_ru : 1'b0;
             // buffer in
-            buffer_in_valid_acc[i]   = (r_dp_req_i.stream_acc_id == (i)) ? buffer_in_valid : '0;
+            r_buffer_in_valid_acc[i]  = (r_dp_req_i.stream_acc_id == (i)) ? buffer_in_valid : '0;
             r_buffer_out_ready_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_buffer_out_ready_acc_df : '0;
         end    
     
@@ -493,11 +493,14 @@ _rsp_t ${protocol}_write_rsp_i,
     // Rdp resp
     assign r_dp_rsp_ready_acc_ru = r_dp_in_rsp_ready_acc[r_dp_req_i.stream_acc_id];
     // Buffer in
-    assign buffer_in_ready      = buffer_in_ready_acc[r_dp_req_i.stream_acc_id];
+    assign buffer_in_ready      = r_buffer_in_ready_acc[r_dp_req_i.stream_acc_id];
     // Buffer out
     assign r_buffer_out_acc_df          = r_buffer_out_acc[r_dp_req_i.stream_acc_id];
     assign r_buffer_out_valid_acc_df    = r_buffer_out_valid_acc[r_dp_req_i.stream_acc_id];
 
+    //---------------
+    // Narrowing Unit
+    //---------------
     if (NarrowingUnit) begin : gen_narrow_unit
         narrowing_wrap #(
             .BusDataWidth     ( DataWidth       ),
@@ -534,8 +537,8 @@ _rsp_t ${protocol}_write_rsp_i,
             .ar_ready_i        (ar_out_ready_acc[stream_acc_pkg::NARROWING_ACC_ID]),
             // Input buffer interface
             .buffer_in_i      (buffer_in   ),
-            .buffer_in_valid_i(buffer_in_valid_acc[stream_acc_pkg::NARROWING_ACC_ID]),
-            .buffer_in_ready_o(buffer_in_ready_acc[stream_acc_pkg::NARROWING_ACC_ID]),  // TODO: careful to this signal
+            .buffer_in_valid_i(r_buffer_in_valid_acc[stream_acc_pkg::NARROWING_ACC_ID]),
+            .buffer_in_ready_o(r_buffer_in_ready_acc[stream_acc_pkg::NARROWING_ACC_ID]),  // TODO: careful to this signal
             .buffer_out_o     (r_buffer_out_acc[stream_acc_pkg::NARROWING_ACC_ID]),
             .buffer_out_valid_o (r_buffer_out_valid_acc[stream_acc_pkg::NARROWING_ACC_ID]),
             .buffer_out_ready_i (r_buffer_out_ready_acc[stream_acc_pkg::NARROWING_ACC_ID])
@@ -559,7 +562,7 @@ _rsp_t ${protocol}_write_rsp_i,
             assign ar_in_ready_acc[stream_acc_pkg::NARROWING_ACC_ID]        = 1'b0;
             assign r_buffer_out_acc[stream_acc_pkg::NARROWING_ACC_ID]       = '0;
             assign r_buffer_out_valid_acc[stream_acc_pkg::NARROWING_ACC_ID] = '0;
-            assign buffer_in_ready_acc[stream_acc_pkg::NARROWING_ACC_ID]    = '0;
+            assign r_buffer_in_ready_acc[stream_acc_pkg::NARROWING_ACC_ID]    = '0;
     end
         // Index 0 is fixed to forwarding
         assign r_dp_out_req_acc[0]        = r_dp_req_i;
@@ -571,9 +574,9 @@ _rsp_t ${protocol}_write_rsp_i,
         assign ar_out_req_acc[0]          = ar_req_i;
         assign ar_out_valid_acc[0]        = ar_in_valid_acc[0];
         assign ar_in_ready_acc[0]         = ar_out_ready_acc[0];
-        assign buffer_in_ready_acc[0]     = r_buffer_out_ready_acc[0];
+        assign r_buffer_in_ready_acc[0]     = r_buffer_out_ready_acc[0];
         assign r_buffer_out_acc[0]        = buffer_in;
-        assign r_buffer_out_valid_acc[0]    = buffer_in_valid_acc[0];
+        assign r_buffer_out_valid_acc[0]  = r_buffer_in_valid_acc[0];
     
     
     
@@ -762,8 +765,8 @@ ${rendered_read_ports[read_port]}
 
 
         // input buffer to accel
-        strb_t [NumWStreamAcc:0]     buffer_in_valid_acc;
-        strb_t [NumWStreamAcc:0]     buffer_in_ready_acc;
+        strb_t [NumWStreamAcc:0]     w_buffer_in_valid_acc;
+        strb_t [NumWStreamAcc:0]     w_buffer_in_ready_acc;
 
 
         // Wvalid signal
@@ -799,7 +802,7 @@ ${rendered_read_ports[read_port]}
                 // Output interface
                 w_dp_out_rsp_ready_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_ready_i : 1'b0;
                 // Input buffer to accel
-                buffer_in_valid_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? buffer_out_valid_shifted : 1'b0;
+                w_buffer_in_valid_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? buffer_out_valid_shifted : 1'b0;
             end
         end
     
@@ -825,14 +828,14 @@ ${rendered_read_ports[read_port]}
         assign aw_req_valid_acc_wu = aw_req_valid_acc[w_dp_req_i.stream_acc_id];
 
         // In buffer to accel
-        assign buffer_out_ready = buffer_in_ready_acc[w_dp_req_i.stream_acc_id];
+        assign buffer_out_ready = w_buffer_in_ready_acc[w_dp_req_i.stream_acc_id];
 
         //---------------------
         // Widening accelerator
         //---------------------
         if (WideningUnit) begin: gen_widening_accelerator
             widening_wrap #(
-                .BufferDepth      ( BufferDepth     ),
+                .BufferDepth      ( '0     ),
                 .BusDataWidth     ( DataWidth       ),
                 .WidenedDataWidth ( WideningDataWidth  ),
                 .Max1DTxWidth     ( WideningMax1DTxWidth ),
@@ -883,8 +886,8 @@ ${rendered_read_ports[read_port]}
                 % endif
                 // Input buffer interface
                 .buffer_in_i      (buffer_out_shifted       ),
-                .buffer_in_valid_i(buffer_in_valid_acc[stream_acc_pkg::WIDENING_ACC_ID]),
-                .buffer_in_ready_o(buffer_in_ready_acc[stream_acc_pkg::WIDENING_ACC_ID]),  // TODO: careful to this signal
+                .buffer_in_valid_i(w_buffer_in_valid_acc[stream_acc_pkg::WIDENING_ACC_ID]),
+                .buffer_in_ready_o(w_buffer_in_ready_acc[stream_acc_pkg::WIDENING_ACC_ID]),  // TODO: careful to this signal
                 .buffer_out_o     (buffer_out_acc[stream_acc_pkg::WIDENING_ACC_ID]),
                 .buffer_out_valid_o (buffer_out_valid_acc[stream_acc_pkg::WIDENING_ACC_ID]),
                 .buffer_out_ready_i (buffer_out_ready_acc[stream_acc_pkg::WIDENING_ACC_ID])
@@ -901,10 +904,10 @@ ${rendered_read_ports[read_port]}
             assign aw_req_acc[stream_acc_pkg::WIDENING_ACC_ID]             = '0;
             assign aw_req_valid_acc[stream_acc_pkg::WIDENING_ACC_ID]       = 1'b0;
             assign aw_ready_acc[stream_acc_pkg::WIDENING_ACC_ID]           = 1'b0;
-            //assign buffer_in_valid_acc[stream_acc_pkg::WIDENING_ACC_ID]    = '0;
+            //assign w_buffer_in_valid_acc[stream_acc_pkg::WIDENING_ACC_ID]    = '0;
             assign buffer_out_acc[stream_acc_pkg::WIDENING_ACC_ID]         = '0;
             assign buffer_out_valid_acc[stream_acc_pkg::WIDENING_ACC_ID]   = '0;
-            assign buffer_in_ready_acc[stream_acc_pkg::WIDENING_ACC_ID]   = '0;
+            assign w_buffer_in_ready_acc[stream_acc_pkg::WIDENING_ACC_ID]   = '0;
         end
         
         // Index 0 is fixed to forwarding
@@ -918,9 +921,9 @@ ${rendered_read_ports[read_port]}
         assign aw_req_valid_acc[0]        = aw_valid_acc[0];
         assign aw_ready_acc[0]            = aw_req_ready_acc[0];
         assign wvalid_acc[0]              = axi_write_req_o.w_valid;
-        assign buffer_in_ready_acc[0]     = buffer_out_ready_acc[0];
+        assign w_buffer_in_ready_acc[0]     = buffer_out_ready_acc[0];
         assign buffer_out_acc[0]          = buffer_out_shifted;
-        assign buffer_out_valid_acc[0]    = buffer_in_valid_acc[0];
+        assign buffer_out_valid_acc[0]    = w_buffer_in_valid_acc[0];
     
     end else begin : gen_no_streaming_acc
         // connect to 0 all acc_wu signals
