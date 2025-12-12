@@ -63,8 +63,8 @@ legalizer_read_data_path_acc: |
         shift:        opt_tf_q.read_shift,
         decouple_aw:  opt_tf_q.decouple_aw,
         num_beats:    r_req_o.ar_req.axi.ar_chan.len,
-        is_single:    r_req_o.ar_req.axi.ar_chan.len == '0,
-        stream_acc_id: opt_tf_q.r_stream_acc_id
+        is_single:    r_req_o.ar_req.axi.ar_chan.len == '0
+        //stream_acc_id: opt_tf_q.r_stream_acc_id
     };
 legalizer_write_meta_channel: |
     w_req_o.aw_req.axi.aw_chan = '{
@@ -97,8 +97,8 @@ legalizer_write_data_path_acc: |
         tailer: OffsetWidth'(w_num_bytes + w_addr_offset),
         shift: opt_tf_q.write_shift,
         num_beats: w_req_o.aw_req.axi.aw_chan.len,
-        is_single: w_req_o.aw_req.axi.aw_chan.len == '0,
-        stream_acc_id: opt_tf_q.w_stream_acc_id
+        is_single: w_req_o.aw_req.axi.aw_chan.len == '0
+        //stream_acc_id: opt_tf_q.w_stream_acc_id
     };
 read_template: |
     idma_axi_read #(

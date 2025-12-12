@@ -251,7 +251,7 @@ _rsp_t ${protocol}_write_rsp_i,
         logic                is_single;
         % for protocol in used_protocols:
     % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
-        logic [StreamRAccIdWidth-1:0] stream_acc_id;
+    //    logic [StreamRAccIdWidth-1:0] stream_acc_id;
         axi_pkg::len_t       num_beats;
     %  endif
 % endfor
@@ -288,9 +288,9 @@ _rsp_t ${protocol}_write_rsp_i,
         axi_pkg::len_t       num_beats;
         logic                is_single;
 % for protocol in used_protocols:
-    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
-        logic [StreamWAccIdWidth-1:0] stream_acc_id;
-    %  endif
+    //% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
+    //    logic [StreamWAccIdWidth-1:0] stream_acc_id;
+    //%  endif
 % endfor
     } w_dp_req_t;
 
@@ -352,10 +352,10 @@ _rsp_t ${protocol}_write_rsp_i,
         idma_pkg::axi_options_t dst_axi_opt;
         logic                   super_last;
 % for protocol in used_protocols:
-    % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
-        logic [2:0]             r_stream_acc_id;
-        logic [2:0]             w_stream_acc_id;
-    %  endif
+    //% if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
+    //    logic [2:0]             r_stream_acc_id;
+    //    logic [2:0]             w_stream_acc_id;
+    //%  endif
 % endfor
     } idma_mut_tf_opt_t;
 

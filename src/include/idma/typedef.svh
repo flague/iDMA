@@ -25,8 +25,8 @@
         axi_id_t                    axi_id;                              \
         idma_pkg::axi_options_t     src;                                 \
         idma_pkg::axi_options_t     dst;                                 \
-        logic[2:0] r_stream_acc_id;                                      \
-        logic[2:0] w_stream_acc_id;                                      \
+        //logic[2:0] r_stream_acc_id;                                      \
+        //logic[2:0] w_stream_acc_id;                                      \
         idma_pkg::backend_options_t beo;                                 \
         logic                       last;                                \
     } options_t;
