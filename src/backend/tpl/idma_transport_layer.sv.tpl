@@ -464,39 +464,51 @@ _rsp_t ${protocol}_write_rsp_i,
     // -------------------    
     always_comb begin : r_acc_demux
         for (int unsigned i = 0; i <= NumRStreamAcc; i++) begin : rendered_stream_acc_ports
-            r_dp_in_req_valid_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_valid_i : 1'b0;
-            ar_in_valid_acc[i]       = (r_dp_req_i.stream_acc_id == (i)) ? ar_valid_i  : 1'b0;
-            r_dp_out_rsp_ready_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_ready_i : 1'b0;
+            r_dp_in_req_valid_acc[i] = (narrowing_req_i.enable == 1'(i)) ? r_dp_valid_i : 1'b0;
+            ar_in_valid_acc[i]       = (narrowing_req_i.enable == 1'(i)) ? ar_valid_i  : 1'b0;
+            r_dp_out_rsp_ready_acc[i] = (narrowing_req_i.enable == 1'(i)) ? r_dp_ready_i : 1'b0;
             // read unit acc
-            r_dp_out_req_ready_acc[i]= (r_dp_req_i.stream_acc_id == (i)) ? r_dp_req_ready_acc_ru : 1'b0;
-            ar_out_ready_acc[i]      = (r_dp_req_i.stream_acc_id == (i)) ? ar_req_ready_acc_ru : 1'b0;
+            r_dp_out_req_ready_acc[i]= (narrowing_req_i.enable == 1'(i)) ? r_dp_req_ready_acc_ru : 1'b0;
+            ar_out_ready_acc[i]      = (narrowing_req_i.enable == 1'(i)) ? ar_req_ready_acc_ru : 1'b0;
             // r dp rsp
-            r_dp_in_rsp_valid_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_rsp_valid_acc_ru : 1'b0;
+            r_dp_in_rsp_valid_acc[i] = (narrowing_req_i.enable == 1'(i)) ? r_dp_rsp_valid_acc_ru : 1'b0;
             // buffer in
-            r_buffer_in_valid_acc[i]  = (r_dp_req_i.stream_acc_id == (i)) ? buffer_in_valid : '0;
-            r_buffer_out_ready_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_buffer_out_ready_acc_df : '0;
+            r_buffer_in_valid_acc[i]  =  (narrowing_req_i.enable == 1'(i)) ? buffer_in_valid : '0;
+            r_buffer_out_ready_acc[i] =  (narrowing_req_i.enable == 1'(i)) ? r_buffer_out_ready_acc_df : '0;
+            
+            //r_dp_in_req_valid_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_valid_i : 1'b0;
+            //ar_in_valid_acc[i]       = (r_dp_req_i.stream_acc_id == (i)) ? ar_valid_i  : 1'b0;
+            //r_dp_out_rsp_ready_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_ready_i : 1'b0;
+            //// read unit acc
+            //r_dp_out_req_ready_acc[i]= (r_dp_req_i.stream_acc_id == (i)) ? r_dp_req_ready_acc_ru : 1'b0;
+            //ar_out_ready_acc[i]      = (r_dp_req_i.stream_acc_id == (i)) ? ar_req_ready_acc_ru : 1'b0;
+            //// r dp rsp
+            //r_dp_in_rsp_valid_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_dp_rsp_valid_acc_ru : 1'b0;
+            //// buffer in
+            //r_buffer_in_valid_acc[i]  = (r_dp_req_i.stream_acc_id == (i)) ? buffer_in_valid : '0;
+            //r_buffer_out_ready_acc[i] = (r_dp_req_i.stream_acc_id == (i)) ? r_buffer_out_ready_acc_df : '0;
         end    
     
     end
     
     // Mux output signals
     // ------------------
-    assign r_dp_ready_o = r_dp_in_req_ready_acc[r_dp_req_i.stream_acc_id];
-    assign ar_ready_o   = ar_in_ready_acc[r_dp_req_i.stream_acc_id];
-    assign r_dp_rsp_o   = r_dp_out_rsp_acc[r_dp_req_i.stream_acc_id];
-    assign r_dp_valid_o = r_dp_out_rsp_valid_acc[r_dp_req_i.stream_acc_id];
+    assign r_dp_ready_o = (narrowing_req_i.enable) ? r_dp_in_req_ready_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_dp_in_req_ready_acc[0];
+    assign ar_ready_o   = (narrowing_req_i.enable) ? ar_in_ready_acc[stream_acc_pkg::NARROWING_ACC_ID] : ar_in_ready_acc[0];
+    assign r_dp_rsp_o   = (narrowing_req_i.enable) ? r_dp_out_rsp_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_dp_out_rsp_acc[0];
+    assign r_dp_valid_o = (narrowing_req_i.enable) ? r_dp_out_rsp_valid_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_dp_out_rsp_valid_acc[0];
     // Req from accelerators to read unit
-    assign r_dp_req_acc_ru       = r_dp_out_req_acc[r_dp_req_i.stream_acc_id];
-    assign r_dp_req_valid_acc_ru = r_dp_out_req_valid_acc[r_dp_req_i.stream_acc_id];
-    assign ar_req_acc_ru         = ar_out_req_acc[r_dp_req_i.stream_acc_id];
-    assign ar_req_valid_acc_ru   = ar_out_valid_acc[r_dp_req_i.stream_acc_id];
+    assign r_dp_req_acc_ru       = (narrowing_req_i.enable) ? r_dp_out_req_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_dp_out_req_acc[0];
+    assign r_dp_req_valid_acc_ru = (narrowing_req_i.enable) ? r_dp_out_req_valid_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_dp_out_req_valid_acc[0];
+    assign ar_req_acc_ru         = (narrowing_req_i.enable) ? ar_out_req_acc[stream_acc_pkg::NARROWING_ACC_ID] : ar_out_req_acc[0];
+    assign ar_req_valid_acc_ru   = (narrowing_req_i.enable) ? ar_out_valid_acc[stream_acc_pkg::NARROWING_ACC_ID] : ar_out_valid_acc[0];
     // Rdp resp
-    assign r_dp_rsp_ready_acc_ru = r_dp_in_rsp_ready_acc[r_dp_req_i.stream_acc_id];
+    assign r_dp_rsp_ready_acc_ru = (narrowing_req_i.enable) ? r_dp_in_rsp_ready_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_dp_in_rsp_ready_acc[0];
     // Buffer in
-    assign buffer_in_ready      = r_buffer_in_ready_acc[r_dp_req_i.stream_acc_id];
+    assign buffer_in_ready      = (narrowing_req_i.enable) ? r_buffer_in_ready_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_buffer_in_ready_acc[0];
     // Buffer out
-    assign r_buffer_out_acc_df          = r_buffer_out_acc[r_dp_req_i.stream_acc_id];
-    assign r_buffer_out_valid_acc_df    = r_buffer_out_valid_acc[r_dp_req_i.stream_acc_id];
+    assign r_buffer_out_acc_df          = (narrowing_req_i.enable) ? r_buffer_out_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_buffer_out_acc[0];
+    assign r_buffer_out_valid_acc_df    = (narrowing_req_i.enable) ? r_buffer_out_valid_acc[stream_acc_pkg::NARROWING_ACC_ID] : r_buffer_out_valid_acc[0];
 
     //---------------
     // Narrowing Unit
@@ -776,7 +788,8 @@ ${rendered_read_ports[read_port]}
         logic [NumWStreamAcc:0] wvalid_acc;
 
         // Wvalid assign
-        assign wvalid_o = wvalid_acc[w_dp_req_i.stream_acc_id];
+        //assign wvalid_o = wvalid_acc[w_dp_req_i.stream_acc_id];
+        assign wvalid_o = (widening_req_i.enable) ? wvalid_acc[stream_acc_pkg::WIDENING_ACC_ID] : wvalid_acc[0];
 
     %  endif
 
@@ -791,44 +804,75 @@ ${rendered_read_ports[read_port]}
         always_comb begin :  w_acc_demux
             for (int unsigned i = 0; i <= NumWStreamAcc; i++) begin : gen_streaming_accelerator_ports
                 // input interface
-                w_dp_in_req_valid_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_valid_i : 1'b0;
-                aw_valid_acc[i]      = (w_dp_req_i.stream_acc_id == (i)) ? aw_valid_i  : 1'b0;
+                w_dp_in_req_valid_acc[i] = (widening_req_i.enable == 1'(i)) ? w_dp_valid_i : 1'b0;
+                aw_valid_acc[i]      = (widening_req_i.enable == 1'(i)) ? aw_valid_i  : 1'b0;
                 // axi_write unit if
-                w_dp_out_req_ready_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_req_ready_acc_wu : 1'b0;
-                w_dp_in_rsp_valid_acc[i]  = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_rsp_valid_acc_wu : 1'b0;
-                aw_req_ready_acc[i]   = (w_dp_req_i.stream_acc_id == (i)) ? aw_req_ready_acc_wu : 1'b0;
+                w_dp_out_req_ready_acc[i] = (widening_req_i.enable == 1'(i)) ? w_dp_req_ready_acc_wu : 1'b0;
+                w_dp_in_rsp_valid_acc[i]  = (widening_req_i.enable == 1'(i)) ? w_dp_rsp_valid_acc_wu : 1'b0;
+                aw_req_ready_acc[i]   = (widening_req_i.enable == 1'(i)) ? aw_req_ready_acc_wu : 1'b0;
                 // Out buffer
-                buffer_out_ready_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? buffer_out_ready_acc_wu : 1'b0;
+                buffer_out_ready_acc[i] = (widening_req_i.enable == 1'(i)) ? buffer_out_ready_acc_wu : 1'b0;
                 // Output interface
-                w_dp_out_rsp_ready_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_ready_i : 1'b0;
+                w_dp_out_rsp_ready_acc[i] = (widening_req_i.enable == 1'(i)) ? w_dp_ready_i : 1'b0;
                 // Input buffer to accel
-                w_buffer_in_valid_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? buffer_out_valid_shifted : 1'b0;
+                w_buffer_in_valid_acc[i] = (widening_req_i.enable == 1'(i)) ? buffer_out_valid_shifted : 1'b0;
+                
+                //// input interface
+                //w_dp_in_req_valid_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_valid_i : 1'b0;
+                //aw_valid_acc[i]      = (w_dp_req_i.stream_acc_id == (i)) ? aw_valid_i  : 1'b0;
+                //// axi_write unit if
+                //w_dp_out_req_ready_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_req_ready_acc_wu : 1'b0;
+                //w_dp_in_rsp_valid_acc[i]  = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_rsp_valid_acc_wu : 1'b0;
+                //aw_req_ready_acc[i]   = (w_dp_req_i.stream_acc_id == (i)) ? aw_req_ready_acc_wu : 1'b0;
+                //// Out buffer
+                //buffer_out_ready_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? buffer_out_ready_acc_wu : 1'b0;
+                //// Output interface
+                //w_dp_out_rsp_ready_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? w_dp_ready_i : 1'b0;
+                //// Input buffer to accel
+                //w_buffer_in_valid_acc[i] = (w_dp_req_i.stream_acc_id == (i)) ? buffer_out_valid_shifted : 1'b0;
             end
         end
     
         // Mux output signals
         // ------------------
         // Input/ output interface
-        assign w_dp_ready_o = w_dp_in_req_ready_acc[w_dp_req_i.stream_acc_id];
-        assign aw_ready_o = aw_ready_acc[w_dp_req_i.stream_acc_id];
-        assign w_dp_rsp_o = w_dp_out_rsp_acc[w_dp_req_i.stream_acc_id];
-        assign w_dp_valid_o = w_dp_out_rsp_valid_acc[w_dp_req_i.stream_acc_id];
+        assign w_dp_ready_o = (widening_req_i.enable) ? w_dp_in_req_ready_acc[stream_acc_pkg::WIDENING_ACC_ID] : w_dp_in_req_ready_acc[0];
+        assign aw_ready_o = (widening_req_i.enable) ? aw_ready_acc[stream_acc_pkg::WIDENING_ACC_ID] : aw_ready_acc[0];
+        assign w_dp_rsp_o   = (widening_req_i.enable) ? w_dp_out_rsp_acc[stream_acc_pkg::WIDENING_ACC_ID] : w_dp_out_rsp_acc[0];
+        assign w_dp_valid_o = (widening_req_i.enable) ? w_dp_out_rsp_valid_acc[stream_acc_pkg::WIDENING_ACC_ID] : w_dp_out_rsp_valid_acc[0];
 
 
         // Out buffer to axi_write unit
-        assign buffer_out_valid_acc_wu = buffer_out_valid_acc[w_dp_req_i.stream_acc_id];
-        assign buffer_out_acc_wu = buffer_out_acc[w_dp_req_i.stream_acc_id];
+        assign buffer_out_valid_acc_wu = (widening_req_i.enable) ? buffer_out_valid_acc[stream_acc_pkg::WIDENING_ACC_ID] : buffer_out_valid_acc[0];
+        assign buffer_out_acc_wu = (widening_req_i.enable) ? buffer_out_acc[stream_acc_pkg::WIDENING_ACC_ID] : buffer_out_acc[0];
 
         // Write unit
-        assign w_dp_req_valid_acc_wu = w_dp_in_req_valid_acc[w_dp_req_i.stream_acc_id];
-        assign w_dp_req_acc_wu = w_dp_out_req_acc[w_dp_req_i.stream_acc_id];
-        assign w_dp_rsp_ready_acc_wu = w_dp_in_rsp_ready_acc[w_dp_req_i.stream_acc_id];
+        assign w_dp_req_valid_acc_wu = (widening_req_i.enable) ? w_dp_in_req_valid_acc[stream_acc_pkg::WIDENING_ACC_ID] : w_dp_in_req_valid_acc[0];
+        assign w_dp_req_acc_wu = (widening_req_i.enable) ? w_dp_out_req_acc[stream_acc_pkg::WIDENING_ACC_ID] : w_dp_out_req_acc[0];
+        assign w_dp_rsp_ready_acc_wu = (widening_req_i.enable) ? w_dp_in_rsp_ready_acc[stream_acc_pkg::WIDENING_ACC_ID] : w_dp_in_rsp_ready_acc[0];
         // Write unit AW
-        assign aw_req_acc_wu = aw_req_acc[w_dp_req_i.stream_acc_id];
-        assign aw_req_valid_acc_wu = aw_req_valid_acc[w_dp_req_i.stream_acc_id];
+        assign aw_req_acc_wu = (widening_req_i.enable) ? aw_req_acc[stream_acc_pkg::WIDENING_ACC_ID] : aw_req_acc[0];
+        assign aw_req_valid_acc_wu = (widening_req_i.enable) ? aw_req_valid_acc[stream_acc_pkg::WIDENING_ACC_ID] : aw_req_valid_acc[0];
 
         // In buffer to accel
-        assign buffer_out_ready = w_buffer_in_ready_acc[w_dp_req_i.stream_acc_id];
+        assign buffer_out_ready = (widening_req_i.enable) ? w_buffer_in_ready_acc[stream_acc_pkg::WIDENING_ACC_ID] : w_buffer_in_ready_acc[0];
+
+        //assign w_dp_ready_o = w_dp_in_req_ready_acc[w_dp_req_i.stream_acc_id];
+        //assign aw_ready_o = aw_ready_acc[w_dp_req_i.stream_acc_id];
+        //assign w_dp_rsp_o = w_dp_out_rsp_acc[w_dp_req_i.stream_acc_id];
+        //assign w_dp_valid_o = w_dp_out_rsp_valid_acc[w_dp_req_i.stream_acc_id];
+        //// Out buffer to axi_write unit
+        //assign buffer_out_valid_acc_wu = buffer_out_valid_acc[w_dp_req_i.stream_acc_id];
+        //assign buffer_out_acc_wu = buffer_out_acc[w_dp_req_i.stream_acc_id];
+        //// Write unit
+        //assign w_dp_req_valid_acc_wu = w_dp_in_req_valid_acc[w_dp_req_i.stream_acc_id];
+        //assign w_dp_req_acc_wu = w_dp_out_req_acc[w_dp_req_i.stream_acc_id];
+        //assign w_dp_rsp_ready_acc_wu = w_dp_in_rsp_ready_acc[w_dp_req_i.stream_acc_id];
+        //// Write unit AW
+        //assign aw_req_acc_wu = aw_req_acc[w_dp_req_i.stream_acc_id];
+        //assign aw_req_valid_acc_wu = aw_req_valid_acc[w_dp_req_i.stream_acc_id];
+        //// In buffer to accel
+        //assign buffer_out_ready = (widening_req_i.enable) ? w_buffer_in_ready_acc[stream_acc_pkg::WIDENING_ACC_ID] : w_buffer_in_ready_acc[0];
 
         //---------------------
         // Widening accelerator
