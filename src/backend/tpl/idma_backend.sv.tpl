@@ -562,6 +562,9 @@ _rsp_t ${protocol}_write_rsp_i,
             tailer:      OffsetWidth'(idma_req_i.length + idma_req_i.src_addr[OffsetWidth-1:0]),
             shift:       OffsetWidth'(idma_req_i.src_addr[OffsetWidth-1:0]),
             decouple_aw: idma_req_i.opt.beo.decouple_aw,
+            % if streaming_accelerator[protocol] == 'true' and 'axi' in used_read_protocols and 'axi' in used_write_protocols and one_write_port: 
+            num_beats: '0,
+            % endif
             is_single:   len == '0
         };
 
